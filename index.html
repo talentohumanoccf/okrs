@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de OKRs - Cori Talks</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .animate-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 overflow-hidden h-screen">
+
+    <!-- Contenedor Principal -->
+    <div id="app" class="h-full">
+        <!-- El contenido se genera dinámicamente mediante JS -->
+    </div>
+
+    <script>
+        // --- CONFIGURACIÓN Y ESTADO ---
+        const DEFAULT_SHEET_URL = "https://script.google.com/macros/s/AKfycbz9hTBQlGDWQIWHFUvDookbqzc4YSYu2cCY997YvwgksQoWKkl_Hx7-58dYBv3-yGl9zQ/exec";
+        
+        let state = {
+            user: null,
+            activeTab: 'dashboard',
+            isLoading: false,
+            isSaving: false,
+            sheetUrl: DEFAULT_SHEET_URL,
+            lastSync: "Nunca",
+            showProjectModal: false,
+            notification: null,
+            squads: [
+                { id: 'S1', name: 'Squad Alpha (Cori Talks)' },
+                { id: 'S2', name: 'Squad Beta (LMS Optimization)' },
+                { id: 'S3', name: 'Squad Gamma (Innovación)' }
+            ],
+            roles: ['Super Admin', 'PO', 'Scrum Master', 'Developer'],
+            projects: [
+                {
+                    id: 'P1',
+                    squadId: 'S1',
+                    name: "Cori Talks",
+                    description: "Espacio diseñado para conectar, aprender e inspirar a través del conocimiento de los colaboradores.",
+                    objectives: ["Fortalecer la cultura de aprendizaje", "Fuente estructurada de conocimiento"],
+                    progress: 62,
+                    participants: [{ name: 'Juan PO', role: 'PO' }],
+                    krs: [
+                        { id: 'KR 1.1', type: 'Funcional', definition: '40% colaboradores conectados', target: 40, current: 28, owner: 'Gestión Humana', deadline: '2025-06-30' },
+                        { id: 'KR 1.2', type: 'Técnico', definition: '85% satisfacción encuestas', target: 85, current: 80, owner: 'Comunicaciones', deadline: '2025-06-30' }
+                    ]
+                }
+            ]
+        };
+
+        // --- LÓGICA DE NEGOCIO ---
+
+        function notify(msg, type = 'success') {
+            state.notification = { msg, type };
+            render();
+            setTimeout(() => {
+                state.notification = null;
+                render();
+            }, 3000);
+        }
+
+        function handleLogin(email, role, squadId) {
+            state.user = {
+                name: email.split('@')[0] || 'Usuario',
+                role: role,
+                squadId: role === 'Super Admin' ? null : squadId
+            };
+            notify(`Sesión iniciada como ${role}`);
+            render();
+        }
+
+        async function syncWithSheet() {
+            if (!state.sheetUrl) return notify("Configura la URL primero", "error");
+            state.isLoading = true;
+            render();
+            try {
+                const response = await fetch(state.sheetUrl);
+                const data = await response.json();
+                console.log("Datos recibidos:", data);
+                state.lastSync = new Date().toLocaleTimeString();
+                notify("Sincronización exitosa");
+            } catch (e) {
+                notify("Error al conectar con la hoja", "error");
+            } finally {
+                state.isLoading = false;
+                render();
+            }
+        }
+
+        async function saveToSheet() {
+            if (!state.sheetUrl) return notify("Configura la URL primero", "error");
+            state.isSaving = true;
+            render();
+
+            const flatData = [];
+            state.projects.forEach(p => {
+                p.krs.forEach(kr => {
+                    flatData.push({
+                        SQUAD_ID: p.squadId,
+                        PROJECT_ID: p.id,
+                        PROJECT_NAME: p.name,
+                        KR_ID: kr.id,
+                        DEFINICION: kr.definition,
+                        META: kr.target,
+                        ACTUAL: kr.current,
+                        RESPONSABLE: kr.owner,
+                        VENCIMIENTO: kr.deadline
+                    });
+                });
+            });
+
+            try {
+                await fetch(state.sheetUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify(flatData)
+                });
+                state.lastSync = new Date().toLocaleTimeString();
+                notify("Cambios guardados en la nube");
+            } catch (e) {
+                notify("Error al guardar", "error");
+            } finally {
+                setTimeout(() => {
+                    state.isSaving = false;
+                    render();
+                }, 1000);
+            }
+        }
+
+        function runRobot() {
+            state.isLoading = true;
+            render();
+            const mockNames = ["IA en Procesos", "Ciberseguridad 360", "Bienestar Digital", "Cultura Ágil"];
+            setTimeout(() => {
+                const newProjects = mockNames.map((name, i) => {
+                    const squad = state.squads[Math.floor(Math.random() * state.squads.length)];
+                    const progress = Math.floor(Math.random() * 100);
+                    return {
+                        id: `PROBOT-${i+1}`,
+                        squadId: squad.id,
+                        name: name,
+                        description: "Proyecto generado automáticamente por el Robot de Pruebas.",
+                        objectives: ["Objetivo de prueba"],
+                        progress: progress,
+                        participants: [{ name: 'Robot', role: 'Developer' }],
+                        krs: [{ id: 'KR-B1', type: 'Técnico', definition: 'Módulo base', target: 100, current: progress, owner: 'Bot', deadline: '2025-12-31' }]
+                    };
+                });
+                state.projects = [...state.projects, ...newProjects];
+                state.isLoading = false;
+                notify("Robot finalizado: 4 proyectos creados");
+                render();
+            }, 1500);
+        }
+
+        // --- COMPONENTES DE RENDERIZADO ---
+
+        function render() {
+            const app = document.getElementById('app');
+            if (!state.user) {
+                app.innerHTML = renderLogin();
+            } else {
+                app.innerHTML = `
+                    <div class="flex h-screen overflow-hidden">
+                        ${renderSidebar()}
+                        <main class="flex-1 overflow-y-auto p-10 bg-[#F8FAFC] custom-scrollbar">
+                            ${renderNotification()}
+                            <div class="max-w-6xl mx-auto">
+                                ${renderContent()}
+                            </div>
+                        </main>
+                    </div>
+                    ${renderModal()}
+                `;
+            }
+            lucide.createIcons();
+        }
+
+        function renderLogin() {
+            return `
+                <div class="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+                    <div class="max-w-md w-full bg-slate-900 rounded-[2.5rem] border border-slate-800 p-10 shadow-2xl animate-in">
+                        <div class="text-center mb-10">
+                            <div class="bg-cyan-500 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-cyan-500/20">
+                                <i data-lucide="target" class="text-white w-8 h-8"></i>
+                            </div>
+                            <h1 class="text-3xl font-black text-white italic tracking-tighter uppercase">Cori<span class="text-cyan-400 font-light">Talks</span></h1>
+                            <p class="text-slate-500 text-sm mt-2 font-medium">Plataforma Estratégica</p>
+                        </div>
+                        <form onsubmit="event.preventDefault(); handleLogin(this.email.value, this.role.value, this.squad.value);" class="space-y-6 text-left">
+                            <div>
+                                <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2">Usuario Corporativo</label>
+                                <input name="email" type="email" required class="w-full bg-slate-800 border border-slate-700 rounded-2xl px-5 py-4 text-white focus:ring-2 focus:ring-cyan-500 outline-none transition-all" placeholder="colaborador@comfamiliar.com">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2">Rol</label>
+                                    <select name="role" id="loginRole" onchange="document.getElementById('loginSquadDiv').style.display = this.value === 'Super Admin' ? 'none' : 'block'" class="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-4 text-white outline-none text-xs">
+                                        ${state.roles.map(r => `<option value="${r}">${r}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div id="loginSquadDiv">
+                                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2">Squad</label>
+                                    <select name="squad" class="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-4 text-white outline-none text-xs">
+                                        ${state.squads.map(s => `<option value="${s.id}">${s.name.split(' ')[1]}</option>`).join('')}
+                                    </select>
+                                </div>
+                            </div>
+                            <button class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-black py-4 rounded-2xl shadow-xl shadow-cyan-900/20 transition-all active:scale-95">Ingresar al Sistema</button>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSidebar() {
+            const tabs = [
+                { id: 'dashboard', label: 'Tablero Global', icon: 'layout-dashboard' },
+                { id: 'projects', label: 'Mis Proyectos', icon: 'briefcase' },
+                { id: 'sync', label: 'Google Sheets', icon: 'database' }
+            ];
+
+            return `
+                <aside class="w-72 bg-slate-950 text-white flex flex-col shrink-0">
+                    <div class="p-8 border-b border-slate-900">
+                        <div class="flex items-center gap-3 mb-6">
+                            <i data-lucide="target" class="text-cyan-400 w-6 h-6"></i>
+                            <h1 class="text-2xl font-black italic tracking-tight uppercase">Cori<span class="text-cyan-400 font-light">Talks</span></h1>
+                        </div>
+                        <div class="p-4 bg-slate-900/50 rounded-2xl border border-slate-800">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-cyan-600 rounded-xl flex items-center justify-center font-black text-sm">${state.user.name.substring(0,2).toUpperCase()}</div>
+                                <div class="overflow-hidden">
+                                    <p class="text-sm font-bold truncate">${state.user.name}</p>
+                                    <p class="text-[10px] text-cyan-500 font-black uppercase tracking-tighter">${state.user.role}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <nav class="flex-1 p-6 space-y-2">
+                        ${tabs.map(tab => `
+                            <button onclick="state.activeTab = '${tab.id}'; render();" class="w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all ${state.activeTab === tab.id ? 'bg-cyan-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-900 hover:text-white'}">
+                                <i data-lucide="${tab.icon}" class="w-5 h-5"></i>
+                                <span class="text-sm font-bold">${tab.label}</span>
+                            </button>
+                        `).join('')}
+                    </nav>
+                    <div class="p-6 border-t border-slate-900">
+                        <button onclick="saveToSheet()" ${state.isSaving ? 'disabled' : ''} class="w-full bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-2xl py-3 flex items-center justify-center gap-2 font-black text-xs uppercase tracking-widest transition-all mb-4">
+                            <i data-lucide="${state.isSaving ? 'refresh-cw' : 'save'}" class="w-4 h-4 ${state.isSaving ? 'animate-spin' : ''}"></i>
+                            ${state.isSaving ? 'Guardando' : 'Sincronizar'}
+                        </button>
+                        <button onclick="state.user = null; render();" class="w-full flex items-center justify-center gap-2 text-slate-600 hover:text-red-400 text-[10px] font-black uppercase transition-colors">
+                            <i data-lucide="log-out" class="w-4 h-4"></i> Cerrar Sesión
+                        </button>
+                    </div>
+                </aside>
+            `;
+        }
+
+        function renderNotification() {
+            if (!state.notification) return '';
+            return `
+                <div class="fixed top-6 right-6 z-[100] px-6 py-4 rounded-2xl shadow-2xl border flex items-center gap-3 animate-in ${state.notification.type === 'error' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-white text-slate-800 border-slate-100'}">
+                    <i data-lucide="check-circle-2" class="w-5 h-5 ${state.notification.type === 'error' ? 'text-red-500' : 'text-emerald-500'}"></i>
+                    <p class="font-bold text-sm">${state.notification.msg}</p>
+                </div>
+            `;
+        }
+
+        function renderContent() {
+            const projects = state.user.role === 'Super Admin' 
+                ? state.projects 
+                : state.projects.filter(p => p.squadId === state.user.squadId);
+
+            if (state.activeTab === 'dashboard') return renderDashboard(projects);
+            if (state.activeTab === 'projects') return renderProjects(projects);
+            if (state.activeTab === 'sync') return renderSync();
+            return '';
+        }
+
+        function renderDashboard(filtered) {
+            const avgProgress = filtered.length ? Math.round(filtered.reduce((a,b)=>a+b.progress,0)/filtered.length) : 0;
+            const stats = [
+                { label: 'Proyectos', value: filtered.length, icon: 'activity', bg: 'bg-blue-100', color: 'text-blue-600' },
+                { label: 'KRs Activos', value: filtered.reduce((a,b)=>a+b.krs.length, 0), icon: 'check-circle-2', bg: 'bg-emerald-100', color: 'text-emerald-600' },
+                { label: 'Colaboradores', value: filtered.reduce((a,b)=>a+b.participants.length, 0), icon: 'users', bg: 'bg-indigo-100', color: 'text-indigo-600' },
+                { label: 'Sincronización', value: state.lastSync === 'Nunca' ? 'Off' : 'On', icon: 'globe', bg: 'bg-cyan-100', color: 'text-cyan-600' }
+            ];
+
+            return `
+                <div class="space-y-8 animate-in">
+                    <header class="flex justify-between items-end">
+                        <div>
+                            <h2 class="text-4xl font-black text-slate-900 tracking-tight">Tablero de Control</h2>
+                            <p class="text-slate-500 font-medium mt-2">Estado para: <span class="text-cyan-600 font-bold">${state.user.role === 'Super Admin' ? 'Toda la Organización' : state.squads.find(s=>s.id===state.user.squadId).name}</span></p>
+                        </div>
+                        <div class="bg-white px-6 py-4 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
+                            <div class="w-12 h-12 bg-cyan-100 rounded-2xl flex items-center justify-center text-cyan-600 font-black text-xl">${avgProgress}%</div>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Avance<br/>Estratégico</p>
+                        </div>
+                    </header>
+
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        ${stats.map(s => `
+                            <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+                                <div class="w-10 h-10 rounded-xl ${s.bg} ${s.color} flex items-center justify-center mb-4"><i data-lucide="${s.icon}" class="w-5 h-5"></i></div>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${s.label}</p>
+                                <p class="text-2xl font-black text-slate-900">${s.value}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="bg-white rounded-[2.5rem] p-10 border border-slate-200 shadow-sm">
+                        <h3 class="text-xl font-black text-slate-900 mb-8 flex items-center gap-3"><i data-lucide="bar-chart-3" class="text-cyan-600"></i> Comparativa de Progreso</h3>
+                        <div class="space-y-10">
+                            ${filtered.map(p => `
+                                <div>
+                                    <div class="flex justify-between items-end mb-3">
+                                        <div>
+                                            <p class="text-xs font-black text-cyan-600 uppercase tracking-widest mb-1">${p.id} · ${state.squads.find(s=>s.id===p.squadId).name.split(' ')[1]}</p>
+                                            <h4 class="text-lg font-bold text-slate-800">${p.name}</h4>
+                                        </div>
+                                        <span class="text-2xl font-black text-slate-900">${p.progress}%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-100 h-4 rounded-full overflow-hidden shadow-inner">
+                                        <div class="bg-gradient-to-r from-cyan-600 to-cyan-400 h-full transition-all duration-1000" style="width: ${p.progress}%"></div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                            ${filtered.length === 0 ? '<p class="text-slate-400 italic text-center py-10">Sin proyectos activos.</p>' : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderProjects(filtered) {
+            return `
+                <div class="space-y-8 animate-in">
+                    <header class="flex justify-between items-center">
+                        <div>
+                            <h2 class="text-4xl font-black text-slate-900 tracking-tight italic">Estrategia & Squads</h2>
+                            <p class="text-slate-500 font-medium mt-1">Gestión de objetivos y resultados clave.</p>
+                        </div>
+                        ${(state.user.role === 'PO' || state.user.role === 'Super Admin') ? `
+                            <button onclick="state.showProjectModal = true; render();" class="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-cyan-600 shadow-xl shadow-slate-900/10">
+                                <i data-lucide="plus" class="w-4 h-4"></i> Crear Proyecto
+                            </button>
+                        ` : ''}
+                    </header>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        ${filtered.map(p => `
+                            <div class="bg-white rounded-[3rem] border border-slate-200 overflow-hidden hover:shadow-2xl transition-all group">
+                                <div class="p-10 border-b border-slate-50 bg-slate-50/50">
+                                    <div class="flex justify-between items-start mb-6">
+                                        <span class="bg-white border border-slate-200 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-500 shadow-sm">
+                                            ${state.squads.find(s=>s.id===p.squadId).name}
+                                        </span>
+                                        <div class="flex -space-x-3">
+                                            ${p.participants.map(part => `
+                                                <div class="w-10 h-10 rounded-2xl bg-slate-900 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white shadow-md">
+                                                    ${part.name.substring(0,1).toUpperCase()}
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                    <h3 class="text-3xl font-black text-slate-900 mb-4">${p.name}</h3>
+                                    <p class="text-sm text-slate-500 leading-relaxed italic">"${p.description}"</p>
+                                </div>
+                                <div class="p-10 space-y-8">
+                                    <div>
+                                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Objetivos Estratégicos</p>
+                                        <div class="space-y-3">
+                                            ${p.objectives.map(obj => `
+                                                <div class="flex items-start gap-3 text-sm font-bold text-slate-700">
+                                                    <div class="bg-emerald-100 text-emerald-600 p-1 rounded-md mt-0.5"><i data-lucide="check" class="w-3 h-3"></i></div>
+                                                    <span>${obj}</span>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                    <div class="pt-6 border-t border-slate-50">
+                                        <div class="flex justify-between items-end mb-3">
+                                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cumplimiento Global</span>
+                                            <span class="text-2xl font-black text-cyan-600">${p.progress}%</span>
+                                        </div>
+                                        <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                                            <div class="bg-cyan-600 h-full" style="width: ${p.progress}%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSync() {
+            return `
+                <div class="max-w-4xl mx-auto space-y-8 animate-in">
+                    <div class="bg-white p-12 rounded-[3.5rem] border border-slate-200 shadow-2xl relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
+                            <i data-lucide="database" class="w-48 h-48"></i>
+                        </div>
+                        <div class="flex items-center gap-6 mb-12 relative z-10">
+                            <div class="p-5 bg-cyan-100 text-cyan-600 rounded-[2rem] shadow-inner">
+                                <i data-lucide="database" class="w-12 h-12"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-3xl font-black text-slate-900 tracking-tight">Infraestructura Cloud</h2>
+                                <p class="text-slate-500 font-medium">Sincronización con Google Sheets.</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-10 relative z-10">
+                            <div class="bg-slate-50 p-10 rounded-[2.5rem] border border-slate-200">
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest">URL de Google Apps Script</label>
+                                <div class="flex gap-4">
+                                    <input type="text" value="${state.sheetUrl}" onchange="state.sheetUrl = this.value" class="flex-1 bg-white border border-slate-200 rounded-2xl px-6 py-4 text-xs font-mono text-slate-600 focus:ring-4 focus:ring-cyan-500/20 outline-none shadow-sm">
+                                    <button onclick="syncWithSheet()" ${state.isLoading ? 'disabled' : ''} class="bg-slate-900 text-white px-8 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-cyan-600 transition-all flex items-center gap-2 active:scale-95 shadow-lg">
+                                        <i data-lucide="refresh-cw" class="w-4 h-4 ${state.isLoading ? 'animate-spin' : ''}"></i>
+                                        Vincular
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="border-t border-slate-100 pt-10">
+                                <div class="flex items-center gap-3 mb-6">
+                                    <i data-lucide="cpu" class="text-cyan-500 w-6 h-6"></i>
+                                    <h3 class="text-xl font-black text-slate-900">Laboratorio de Datos</h3>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <button onclick="runRobot()" class="flex items-center justify-between p-6 bg-cyan-50 border border-cyan-100 rounded-3xl hover:bg-cyan-100 transition-all group">
+                                        <div class="text-left">
+                                            <p class="text-sm font-black text-cyan-700">Poblar con Robots</p>
+                                            <p class="text-[10px] text-cyan-600 font-bold uppercase mt-1">Generar 4 Proyectos</p>
+                                        </div>
+                                        <i data-lucide="zap" class="w-6 h-6 text-cyan-500 group-hover:scale-125 transition-all"></i>
+                                    </button>
+                                    <button onclick="state.projects = state.projects.filter(p => !p.id.startsWith('PROBOT')); notify('Datos borrados', 'error'); render();" class="flex items-center justify-between p-6 bg-red-50 border border-red-100 rounded-3xl hover:bg-red-100 transition-all group">
+                                        <div class="text-left">
+                                            <p class="text-sm font-black text-red-700">Limpiar Robots</p>
+                                            <p class="text-[10px] text-red-600 font-bold uppercase mt-1">Borrar datos sim</p>
+                                        </div>
+                                        <i data-lucide="trash-2" class="w-6 h-6 text-red-500 group-hover:scale-125 transition-all"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderModal() {
+            if (!state.showProjectModal) return '';
+            return `
+                <div class="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-6 overflow-y-auto animate-in">
+                    <div class="bg-white w-full max-w-2xl rounded-[3.5rem] p-12 shadow-2xl">
+                        <div class="flex justify-between items-center mb-10">
+                            <h2 class="text-3xl font-black text-slate-900 tracking-tight italic">Nueva Iniciativa</h2>
+                            <button onclick="state.showProjectModal = false; render();" class="p-3 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-400"><i data-lucide="x" class="w-6 h-6"></i></button>
+                        </div>
+                        <div class="space-y-8 text-left">
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Nombre del Proyecto</label>
+                                <input type="text" class="w-full bg-slate-50 border border-slate-100 rounded-[1.5rem] px-6 py-5 outline-none focus:ring-4 focus:ring-cyan-500/10 font-bold text-lg" placeholder="Ej: Expansión Digital">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Reseña Estratégica</label>
+                                <textarea class="w-full bg-slate-50 border border-slate-100 rounded-[1.5rem] px-6 py-5 outline-none focus:ring-4 focus:ring-cyan-500/10 font-medium h-32 leading-relaxed" placeholder="Propósito del proyecto..."></textarea>
+                            </div>
+                            <div class="grid grid-cols-2 gap-6">
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Squad Responsable</label>
+                                    <select class="w-full bg-slate-50 border border-slate-100 rounded-[1.5rem] px-6 py-5 outline-none font-bold text-sm">
+                                        ${state.squads.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Fecha Objetivo</label>
+                                    <input type="date" class="w-full bg-slate-50 border border-slate-100 rounded-[1.5rem] px-6 py-5 outline-none font-bold text-sm text-slate-600">
+                                </div>
+                            </div>
+                            <div class="pt-6 flex gap-4">
+                                <button onclick="state.showProjectModal = false; notify('Proyecto creado'); render();" class="flex-1 bg-slate-900 text-white font-black py-6 rounded-[2rem] uppercase text-xs tracking-[0.2em] shadow-2xl hover:bg-cyan-600 transition-all">Inaugurar Proyecto</button>
+                                <button onclick="state.showProjectModal = false; render();" class="px-10 border border-slate-200 font-black py-6 rounded-[2rem] uppercase text-xs tracking-[0.2em] hover:bg-slate-50 transition-all">Descartar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- INICIALIZACIÓN ---
+        window.onload = () => {
+            render();
+        };
+
+    </script>
+</body>
+</html>
