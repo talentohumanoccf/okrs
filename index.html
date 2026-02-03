@@ -18,10 +18,7 @@
 </head>
 <body class="bg-slate-50 text-slate-900 overflow-hidden h-screen">
 
-    <!-- Contenedor Principal -->
-    <div id="app" class="h-full">
-        <!-- El contenido se genera dinámicamente mediante JS -->
-    </div>
+    <div id="app" class="h-full"></div>
 
     <script>
         // --- CONFIGURACIÓN Y ESTADO ---
@@ -35,6 +32,7 @@
             sheetUrl: DEFAULT_SHEET_URL,
             lastSync: "Nunca",
             showProjectModal: false,
+            editingProjectId: null, // Nuevo: rastrea qué proyecto se está editando
             notification: null,
             squads: [
                 { id: 'S1', name: 'Squad Alpha (Cori Talks)' },
@@ -87,9 +85,10 @@
             try {
                 const response = await fetch(state.sheetUrl);
                 const data = await response.json();
-                console.log("Datos recibidos:", data);
+                if (data && Array.isArray(data)) {
+                    notify("Datos recibidos. Estructura cargada.");
+                }
                 state.lastSync = new Date().toLocaleTimeString();
-                notify("Sincronización exitosa");
             } catch (e) {
                 notify("Error al conectar con la hoja", "error");
             } finally {
@@ -136,6 +135,48 @@
                     render();
                 }, 1000);
             }
+        }
+
+        function openProjectModal(projectId = null) {
+            state.editingProjectId = projectId;
+            state.showProjectModal = true;
+            render();
+        }
+
+        function handleProjectSave(formData) {
+            const objectives = formData.objectives.split('\n').filter(o => o.trim() !== '');
+            
+            if (state.editingProjectId) {
+                // Actualizar existente
+                const index = state.projects.findIndex(p => p.id === state.editingProjectId);
+                if (index !== -1) {
+                    state.projects[index] = {
+                        ...state.projects[index],
+                        name: formData.name,
+                        description: formData.description,
+                        squadId: formData.squadId,
+                        objectives: objectives
+                    };
+                    notify("Proyecto actualizado");
+                }
+            } else {
+                // Crear nuevo
+                const newProj = {
+                    id: 'P' + (state.projects.length + 1),
+                    squadId: formData.squadId,
+                    name: formData.name,
+                    description: formData.description,
+                    objectives: objectives,
+                    progress: 0,
+                    participants: [{ name: state.user.name, role: state.user.role }],
+                    krs: []
+                };
+                state.projects.push(newProj);
+                notify("Proyecto creado");
+            }
+            state.showProjectModal = false;
+            state.editingProjectId = null;
+            render();
         }
 
         function runRobot() {
@@ -190,12 +231,12 @@
         function renderLogin() {
             return `
                 <div class="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-                    <div class="max-w-md w-full bg-slate-900 rounded-[2.5rem] border border-slate-800 p-10 shadow-2xl animate-in">
-                        <div class="text-center mb-10">
+                    <div class="max-w-md w-full bg-slate-900 rounded-[2.5rem] border border-slate-800 p-10 shadow-2xl animate-in text-center">
+                        <div class="mb-10">
                             <div class="bg-cyan-500 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-cyan-500/20">
                                 <i data-lucide="target" class="text-white w-8 h-8"></i>
                             </div>
-                            <h1 class="text-3xl font-black text-white italic tracking-tighter uppercase">Cori<span class="text-cyan-400 font-light">Talks</span></h1>
+                            <h1 class="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">Cori<span class="text-cyan-400 font-light">Talks</span></h1>
                             <p class="text-slate-500 text-sm mt-2 font-medium">Plataforma Estratégica</p>
                         </div>
                         <form onsubmit="event.preventDefault(); handleLogin(this.email.value, this.role.value, this.squad.value);" class="space-y-6 text-left">
@@ -206,7 +247,7 @@
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2">Rol</label>
-                                    <select name="role" id="loginRole" onchange="document.getElementById('loginSquadDiv').style.display = this.value === 'Super Admin' ? 'none' : 'block'" class="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-4 text-white outline-none text-xs">
+                                    <select name="role" onchange="document.getElementById('loginSquadDiv').style.display = this.value === 'Super Admin' ? 'none' : 'block'" class="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-4 text-white outline-none text-xs">
                                         ${state.roles.map(r => `<option value="${r}">${r}</option>`).join('')}
                                     </select>
                                 </div>
@@ -241,7 +282,7 @@
                         <div class="p-4 bg-slate-900/50 rounded-2xl border border-slate-800">
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 bg-cyan-600 rounded-xl flex items-center justify-center font-black text-sm">${state.user.name.substring(0,2).toUpperCase()}</div>
-                                <div class="overflow-hidden">
+                                <div class="overflow-hidden text-left">
                                     <p class="text-sm font-bold truncate">${state.user.name}</p>
                                     <p class="text-[10px] text-cyan-500 font-black uppercase tracking-tighter">${state.user.role}</p>
                                 </div>
@@ -252,7 +293,7 @@
                         ${tabs.map(tab => `
                             <button onclick="state.activeTab = '${tab.id}'; render();" class="w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all ${state.activeTab === tab.id ? 'bg-cyan-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-900 hover:text-white'}">
                                 <i data-lucide="${tab.icon}" class="w-5 h-5"></i>
-                                <span class="text-sm font-bold">${tab.label}</span>
+                                <span class="text-sm font-bold text-left">${tab.label}</span>
                             </button>
                         `).join('')}
                     </nav>
@@ -274,7 +315,7 @@
             return `
                 <div class="fixed top-6 right-6 z-[100] px-6 py-4 rounded-2xl shadow-2xl border flex items-center gap-3 animate-in ${state.notification.type === 'error' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-white text-slate-800 border-slate-100'}">
                     <i data-lucide="check-circle-2" class="w-5 h-5 ${state.notification.type === 'error' ? 'text-red-500' : 'text-emerald-500'}"></i>
-                    <p class="font-bold text-sm">${state.notification.msg}</p>
+                    <p class="font-bold text-sm text-left">${state.notification.msg}</p>
                 </div>
             `;
         }
@@ -300,7 +341,7 @@
             ];
 
             return `
-                <div class="space-y-8 animate-in">
+                <div class="space-y-8 animate-in text-left">
                     <header class="flex justify-between items-end">
                         <div>
                             <h2 class="text-4xl font-black text-slate-900 tracking-tight">Tablero de Control</h2>
@@ -348,14 +389,14 @@
 
         function renderProjects(filtered) {
             return `
-                <div class="space-y-8 animate-in">
+                <div class="space-y-8 animate-in text-left">
                     <header class="flex justify-between items-center">
                         <div>
                             <h2 class="text-4xl font-black text-slate-900 tracking-tight italic">Estrategia & Squads</h2>
                             <p class="text-slate-500 font-medium mt-1">Gestión de objetivos y resultados clave.</p>
                         </div>
                         ${(state.user.role === 'PO' || state.user.role === 'Super Admin') ? `
-                            <button onclick="state.showProjectModal = true; render();" class="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-cyan-600 shadow-xl shadow-slate-900/10">
+                            <button onclick="openProjectModal()" class="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-cyan-600 shadow-xl shadow-slate-900/10 transition-all">
                                 <i data-lucide="plus" class="w-4 h-4"></i> Crear Proyecto
                             </button>
                         ` : ''}
@@ -363,13 +404,20 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                         ${filtered.map(p => `
-                            <div class="bg-white rounded-[3rem] border border-slate-200 overflow-hidden hover:shadow-2xl transition-all group">
+                            <div class="bg-white rounded-[3rem] border border-slate-200 overflow-hidden hover:shadow-2xl transition-all group relative">
+                                <!-- Botón de Edición -->
+                                ${(state.user.role === 'PO' || state.user.role === 'Super Admin') ? `
+                                    <button onclick="openProjectModal('${p.id}')" class="absolute top-6 right-10 p-3 bg-slate-50 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-2xl transition-all shadow-sm">
+                                        <i data-lucide="edit-3" class="w-5 h-5"></i>
+                                    </button>
+                                ` : ''}
+
                                 <div class="p-10 border-b border-slate-50 bg-slate-50/50">
                                     <div class="flex justify-between items-start mb-6">
                                         <span class="bg-white border border-slate-200 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-500 shadow-sm">
                                             ${state.squads.find(s=>s.id===p.squadId).name}
                                         </span>
-                                        <div class="flex -space-x-3">
+                                        <div class="flex -space-x-3 pr-12">
                                             ${p.participants.map(part => `
                                                 <div class="w-10 h-10 rounded-2xl bg-slate-900 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white shadow-md">
                                                     ${part.name.substring(0,1).toUpperCase()}
@@ -377,7 +425,7 @@
                                             `).join('')}
                                         </div>
                                     </div>
-                                    <h3 class="text-3xl font-black text-slate-900 mb-4">${p.name}</h3>
+                                    <h3 class="text-3xl font-black text-slate-900 mb-4 pr-12">${p.name}</h3>
                                     <p class="text-sm text-slate-500 leading-relaxed italic">"${p.description}"</p>
                                 </div>
                                 <div class="p-10 space-y-8">
@@ -411,7 +459,7 @@
 
         function renderSync() {
             return `
-                <div class="max-w-4xl mx-auto space-y-8 animate-in">
+                <div class="max-w-4xl mx-auto space-y-8 animate-in text-left">
                     <div class="bg-white p-12 rounded-[3.5rem] border border-slate-200 shadow-2xl relative overflow-hidden">
                         <div class="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
                             <i data-lucide="database" class="w-48 h-48"></i>
@@ -422,7 +470,7 @@
                             </div>
                             <div>
                                 <h2 class="text-3xl font-black text-slate-900 tracking-tight">Infraestructura Cloud</h2>
-                                <p class="text-slate-500 font-medium">Sincronización con Google Sheets.</p>
+                                <p class="text-slate-500 font-medium">Sincronización bidireccional con Google Sheets.</p>
                             </div>
                         </div>
 
@@ -438,7 +486,7 @@
                                 </div>
                             </div>
 
-                            <div class="border-t border-slate-100 pt-10">
+                            <div class="border-t border-slate-100 pt-10 text-left">
                                 <div class="flex items-center gap-3 mb-6">
                                     <i data-lucide="cpu" class="text-cyan-500 w-6 h-6"></i>
                                     <h3 class="text-xl font-black text-slate-900">Laboratorio de Datos</h3>
@@ -468,27 +516,36 @@
 
         function renderModal() {
             if (!state.showProjectModal) return '';
+            const editingProj = state.editingProjectId ? state.projects.find(p => p.id === state.editingProjectId) : null;
+            const title = editingProj ? "Editar Iniciativa" : "Nueva Iniciativa";
+            const btnText = editingProj ? "Guardar Cambios" : "Inaugurar Proyecto";
+
             return `
                 <div class="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-6 overflow-y-auto animate-in">
-                    <div class="bg-white w-full max-w-2xl rounded-[3.5rem] p-12 shadow-2xl">
+                    <div class="bg-white w-full max-w-2xl rounded-[3.5rem] p-12 shadow-2xl custom-scrollbar">
                         <div class="flex justify-between items-center mb-10">
-                            <h2 class="text-3xl font-black text-slate-900 tracking-tight italic">Nueva Iniciativa</h2>
-                            <button onclick="state.showProjectModal = false; render();" class="p-3 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-400"><i data-lucide="x" class="w-6 h-6"></i></button>
+                            <h2 class="text-3xl font-black text-slate-900 tracking-tight italic">${title}</h2>
+                            <button onclick="state.showProjectModal = false; state.editingProjectId = null; render();" class="p-3 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-400 transition-all"><i data-lucide="x" class="w-6 h-6"></i></button>
                         </div>
-                        <div class="space-y-8 text-left">
+                        <form onsubmit="event.preventDefault(); handleProjectSave({
+                            name: this.name.value,
+                            description: this.description.value,
+                            squadId: this.squadId.value,
+                            objectives: this.objectives.value
+                        });" class="space-y-8 text-left">
                             <div>
                                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Nombre del Proyecto</label>
-                                <input type="text" class="w-full bg-slate-50 border border-slate-100 rounded-[1.5rem] px-6 py-5 outline-none focus:ring-4 focus:ring-cyan-500/10 font-bold text-lg" placeholder="Ej: Expansión Digital">
+                                <input name="name" type="text" value="${editingProj ? editingProj.name : ''}" required class="w-full bg-slate-50 border border-slate-100 rounded-[1.5rem] px-6 py-5 outline-none focus:ring-4 focus:ring-cyan-500/10 font-bold text-lg">
                             </div>
                             <div>
                                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Reseña Estratégica</label>
-                                <textarea class="w-full bg-slate-50 border border-slate-100 rounded-[1.5rem] px-6 py-5 outline-none focus:ring-4 focus:ring-cyan-500/10 font-medium h-32 leading-relaxed" placeholder="Propósito del proyecto..."></textarea>
+                                <textarea name="description" class="w-full bg-slate-50 border border-slate-100 rounded-[1.5rem] px-6 py-5 outline-none focus:ring-4 focus:ring-cyan-500/10 font-medium h-32 leading-relaxed" placeholder="Propósito del proyecto...">${editingProj ? editingProj.description : ''}</textarea>
                             </div>
                             <div class="grid grid-cols-2 gap-6">
                                 <div>
                                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Squad Responsable</label>
-                                    <select class="w-full bg-slate-50 border border-slate-100 rounded-[1.5rem] px-6 py-5 outline-none font-bold text-sm">
-                                        ${state.squads.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                                    <select name="squadId" class="w-full bg-slate-50 border border-slate-100 rounded-[1.5rem] px-6 py-5 outline-none font-bold text-sm">
+                                        ${state.squads.map(s => `<option value="${s.id}" ${editingProj && editingProj.squadId === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
                                     </select>
                                 </div>
                                 <div>
@@ -496,11 +553,16 @@
                                     <input type="date" class="w-full bg-slate-50 border border-slate-100 rounded-[1.5rem] px-6 py-5 outline-none font-bold text-sm text-slate-600">
                                 </div>
                             </div>
-                            <div class="pt-6 flex gap-4">
-                                <button onclick="state.showProjectModal = false; notify('Proyecto creado'); render();" class="flex-1 bg-slate-900 text-white font-black py-6 rounded-[2rem] uppercase text-xs tracking-[0.2em] shadow-2xl hover:bg-cyan-600 transition-all">Inaugurar Proyecto</button>
-                                <button onclick="state.showProjectModal = false; render();" class="px-10 border border-slate-200 font-black py-6 rounded-[2rem] uppercase text-xs tracking-[0.2em] hover:bg-slate-50 transition-all">Descartar</button>
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Objetivos Estratégicos (Uno por línea)</label>
+                                <textarea name="objectives" class="w-full bg-slate-50 border border-slate-100 rounded-[1.5rem] px-6 py-5 outline-none focus:ring-4 focus:ring-cyan-500/10 font-bold text-sm h-32 leading-relaxed">${editingProj ? editingProj.objectives.join('\n') : ''}</textarea>
                             </div>
-                        </div>
+                            
+                            <div class="pt-6 flex gap-4">
+                                <button type="submit" class="flex-1 bg-slate-900 text-white font-black py-6 rounded-[2rem] uppercase text-xs tracking-[0.2em] shadow-2xl hover:bg-cyan-600 transition-all active:scale-95">${btnText}</button>
+                                <button type="button" onclick="state.showProjectModal = false; state.editingProjectId = null; render();" class="px-10 border border-slate-200 font-black py-6 rounded-[2rem] uppercase text-xs tracking-[0.2em] hover:bg-slate-50 transition-all">Descartar</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             `;
