@@ -3,40 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OKR Master - Cori Talks</title>
+    <title>OKR Master Premium - Cori Talks</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
-        body { font-family: 'Plus Jakarta Sans', sans-serif; scroll-behavior: smooth; }
-        .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); }
-        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-        .card-shadow { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05); }
+        
+        :root {
+            --primary: #0ea5e9;
+            --secondary: #6366f1;
+            --dark: #0f172a;
+        }
+
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            scroll-behavior: smooth;
+        }
+
+        .glass-sidebar {
+            background: rgba(15, 23, 42, 0.98);
+            backdrop-filter: blur(12px);
+        }
+
+        .card-premium {
+            background: white;
+            border-radius: 2.5rem;
+            border: 1px solid #f1f5f9;
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card-premium:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.08);
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+
+        .progress-circle {
+            transform: rotate(-90deg);
+        }
+        
+        .modal-overlay {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+        }
     </style>
 </head>
 <body class="bg-[#F8FAFC] text-slate-900 h-screen overflow-hidden">
 
     <div id="app" class="h-full w-full">
-        <!-- Render dinámico -->
+        <!-- Render dinámico mediante JS -->
     </div>
 
     <script>
-        // --- ESTADO INICIAL ---
+        // --- ESTADO GLOBAL ---
+        // Usamos la URL que proporcionaste anteriormente o la dejamos para que el usuario la pegue
         const DEFAULT_SHEET_URL = "https://script.google.com/macros/s/AKfycbz9hTBQlGDWQIWHFUvDookbqzc4YSYu2cCY997YvwgksQoWKkl_Hx7-58dYBv3-yGl9zQ/exec";
         
         let state = {
-            user: null,
+            user: null, 
             activeTab: 'dashboard',
             isLoading: false,
             isSaving: false,
             sheetUrl: DEFAULT_SHEET_URL,
             lastSync: "Nunca",
             showModal: false,
-            editingProject: null, // Proyecto en edición
+            editingProject: null,
             notification: null,
             squads: [
                 { id: 'S1', name: 'Squad Alpha (Cori Talks)' },
@@ -49,14 +102,14 @@
                     id: 'P1',
                     squadId: 'S1',
                     name: "Cori Talks",
-                    description: "Espacio diseñado para conectar e inspirar a través del conocimiento.",
+                    description: "Espacio diseñado para conectar e inspirar a través del intercambio de conocimiento corporativo.",
                     objectives: [
                         {
                             id: 'O1',
-                            title: "Fortalecer la cultura de aprendizaje",
+                            title: "Fortalecer la cultura de aprendizaje colaborativo",
                             krs: [
-                                { id: 'KR1.1', definition: '40% colaboradores conectados', target: 40, current: 28, owner: 'Gestión Humana' },
-                                { id: 'KR1.2', definition: '85% satisfacción encuestas', target: 85, current: 80, owner: 'Comunicaciones' }
+                                { id: 'KR1.1', definition: 'Lograr 40% de conexión trimestral', target: 40, current: 28, owner: 'Gestión Humana' },
+                                { id: 'KR1.2', definition: 'Alcanzar 85% de satisfacción NPS', target: 85, current: 80, owner: 'Comunicaciones' }
                             ]
                         }
                     ]
@@ -64,41 +117,46 @@
             ]
         };
 
-        // --- LÓGICA DE CÁLCULO ---
-        function calculateObjectiveProgress(objective) {
-            if (!objective.krs || objective.krs.length === 0) return 0;
-            const total = objective.krs.reduce((acc, kr) => acc + (Math.min(kr.current / kr.target, 1)), 0);
-            return Math.round((total / objective.krs.length) * 100);
-        }
+        // --- UTILIDADES DE CÁLCULO ---
 
-        function calculateProjectProgress(project) {
-            if (!project.objectives || project.objectives.length === 0) return 0;
-            const total = project.objectives.reduce((acc, obj) => acc + calculateObjectiveProgress(obj), 0);
-            return Math.round(total / project.objectives.length);
-        }
-
-        function getGlobalProgress(filtered) {
-            if (!filtered.length) return 0;
-            const total = filtered.reduce((acc, p) => acc + calculateProjectProgress(p), 0);
-            return Math.round(total / filtered.length);
-        }
-
-        // --- ACCIONES ---
         function notify(msg, type = 'success') {
             state.notification = { msg, type };
             render();
             setTimeout(() => { state.notification = null; render(); }, 3000);
         }
 
+        function getProjectProgress(project) {
+            if (!project.objectives || project.objectives.length === 0) return 0;
+            const objProgresses = project.objectives.map(obj => {
+                if (!obj.krs || obj.krs.length === 0) return 0;
+                const krAvg = obj.krs.reduce((sum, kr) => sum + Math.min(kr.current / kr.target, 1), 0);
+                return krAvg / obj.krs.length;
+            });
+            const total = objProgresses.reduce((a, b) => a + b, 0);
+            return Math.round((total / project.objectives.length) * 100);
+        }
+
+        function getGlobalProgress(filteredProjects) {
+            if (filteredProjects.length === 0) return 0;
+            const total = filteredProjects.reduce((sum, p) => sum + getProjectProgress(p), 0);
+            return Math.round(total / filteredProjects.length);
+        }
+
+        // --- ACCIONES DE ESTADO ---
+
         function handleLogin(email, role, squadId) {
-            state.user = { name: email.split('@')[0], role, squadId: role === 'Super Admin' ? null : squadId };
+            state.user = {
+                name: email.split('@')[0],
+                role: role,
+                squadId: role === 'Super Admin' ? null : squadId
+            };
             render();
         }
 
-        function openModal(projectId = null) {
+        function openProjectModal(projectId = null) {
             if (projectId) {
                 const p = state.projects.find(proj => proj.id === projectId);
-                state.editingProject = JSON.parse(JSON.stringify(p)); // Clon profundo
+                state.editingProject = JSON.parse(JSON.stringify(p));
             } else {
                 state.editingProject = {
                     id: 'P' + Date.now(),
@@ -112,19 +170,6 @@
             render();
         }
 
-        function saveProject() {
-            const index = state.projects.findIndex(p => p.id === state.editingProject.id);
-            if (index !== -1) {
-                state.projects[index] = state.editingProject;
-            } else {
-                state.projects.push(state.editingProject);
-            }
-            state.showModal = false;
-            state.editingProject = null;
-            notify("Estrategia guardada localmente");
-            render();
-        }
-
         function addObjective() {
             state.editingProject.objectives.push({
                 id: 'O' + (state.editingProject.objectives.length + 1),
@@ -135,8 +180,9 @@
         }
 
         function addKR(objIdx) {
-            state.editingProject.objectives[objIdx].krs.push({
-                id: `KR${objIdx+1}.${state.editingProject.objectives[objIdx].krs.length + 1}`,
+            const obj = state.editingProject.objectives[objIdx];
+            obj.krs.push({
+                id: `KR${objIdx+1}.${obj.krs.length + 1}`,
                 definition: 'Nuevo Resultado Clave',
                 target: 100,
                 current: 0,
@@ -145,30 +191,137 @@
             render();
         }
 
-        async function syncCloud() {
-            state.isSaving = true; render();
-            // Simulación de envío a Sheets (aquí iría el fetch POST)
-            setTimeout(() => {
-                state.isSaving = false;
+        function deleteObjective(idx) {
+            state.editingProject.objectives.splice(idx, 1);
+            render();
+        }
+
+        function deleteKR(objIdx, krIdx) {
+            state.editingProject.objectives[objIdx].krs.splice(krIdx, 1);
+            render();
+        }
+
+        function saveProject() {
+            if (!state.editingProject.name) return notify("El nombre del proyecto es obligatorio", "error");
+            const index = state.projects.findIndex(p => p.id === state.editingProject.id);
+            if (index !== -1) {
+                state.projects[index] = state.editingProject;
+            } else {
+                state.projects.push(state.editingProject);
+            }
+            state.showModal = false;
+            state.editingProject = null;
+            notify("Cambios guardados localmente");
+            render();
+        }
+
+        // --- INTEGRACIÓN CON GOOGLE SHEETS (Compatible con integration_script.gs) ---
+
+        async function syncWithSheets() {
+            if (!state.sheetUrl) return notify("URL de API no configurada", "error");
+            state.isSaving = true;
+            render();
+
+            // Aplanar datos para el formato de HEADERS de la hoja
+            const flatData = [];
+            state.projects.forEach(p => {
+                p.objectives.forEach(obj => {
+                    obj.krs.forEach(kr => {
+                        flatData.push({
+                            SQUAD_ID: p.squadId,
+                            PROJECT_ID: p.id,
+                            PROJECT_NAME: p.name,
+                            KR_ID: kr.id,
+                            DEFINICION: kr.definition,
+                            META: kr.target,
+                            ACTUAL: kr.current,
+                            RESPONSABLE: kr.owner,
+                            VENCIMIENTO: "2025-12-31" // Valor por defecto para prueba
+                        });
+                    });
+                });
+            });
+
+            try {
+                // Usamos POST para enviar la colección completa como solicita el script .gs
+                await fetch(state.sheetUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify(flatData)
+                });
                 state.lastSync = new Date().toLocaleTimeString();
-                notify("Sincronizado con Google Sheets");
+                notify("Sincronización Cloud exitosa");
+            } catch (e) {
+                notify("Error de conexión con Google Sheets", "error");
+            } finally {
+                state.isSaving = false;
+                render();
+            }
+        }
+
+        // --- ROBOT DE PRUEBAS ---
+        function runTestRobot() {
+            state.isLoading = true;
+            render();
+            
+            setTimeout(() => {
+                const robotProjects = [
+                    { name: "IA en Customer Experience", squad: 'S3' },
+                    { name: "Ciberseguridad Risaralda", squad: 'S2' },
+                    { name: "Cultura Digital 2025", squad: 'S1' },
+                    { name: "Optimización Procesos Operativos", squad: 'S1' }
+                ];
+
+                const newItems = robotProjects.map((item, i) => {
+                    const progress = Math.floor(Math.random() * 80) + 10;
+                    return {
+                        id: 'PROBOT-' + (Date.now() + i),
+                        squadId: item.squad,
+                        name: item.name,
+                        description: "Proyecto inyectado por el Robot para validación estratégica de impacto visual.",
+                        objectives: [
+                            {
+                                id: 'O1',
+                                title: "Eficiencia y Calidad",
+                                krs: [
+                                    { id: 'KR1.1', definition: 'Aumentar rendimiento en 20%', target: 100, current: progress, owner: 'Bot Admin' }
+                                ]
+                            }
+                        ]
+                    };
+                });
+
+                state.projects = [...state.projects, ...newItems];
+                state.isLoading = false;
+                notify("Robot finalizado: 4 proyectos inyectados");
                 render();
             }, 1000);
         }
 
-        // --- RENDERIZADO ---
+        function clearRobotData() {
+            state.projects = state.projects.filter(p => !p.id.startsWith('PROBOT'));
+            notify("Datos de prueba eliminados", "error");
+            render();
+        }
+
+        // --- COMPONENTES DE INTERFAZ ---
+
         function render() {
             const app = document.getElementById('app');
             if (!state.user) {
                 app.innerHTML = renderLogin();
             } else {
-                const filtered = state.user.role === 'Super Admin' ? state.projects : state.projects.filter(p => p.squadId === state.user.squadId);
+                const filtered = state.user.role === 'Super Admin' 
+                    ? state.projects 
+                    : state.projects.filter(p => p.squadId === state.user.squadId);
+                
                 app.innerHTML = `
-                    <div class="flex h-full overflow-hidden">
+                    <div class="flex h-full w-full overflow-hidden">
                         ${renderSidebar()}
-                        <main class="flex-1 overflow-y-auto p-8 custom-scrollbar relative">
+                        <main class="flex-1 overflow-y-auto p-10 bg-[#F8FAFC] custom-scrollbar relative">
                             ${renderNotification()}
                             <div class="max-w-6xl mx-auto">
+                                ${renderHeader(filtered)}
                                 ${state.activeTab === 'dashboard' ? renderDashboard(filtered) : ''}
                                 ${state.activeTab === 'projects' ? renderProjects(filtered) : ''}
                                 ${state.activeTab === 'sync' ? renderSync() : ''}
@@ -184,23 +337,33 @@
         function renderLogin() {
             return `
                 <div class="min-h-screen bg-slate-950 flex items-center justify-center p-6 animate-fade-in">
-                    <div class="max-w-md w-full bg-slate-900 rounded-[3rem] border border-slate-800 p-12 card-shadow text-center">
-                        <div class="bg-cyan-500 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-cyan-500/20">
+                    <div class="max-w-md w-full bg-slate-900 rounded-[3.5rem] border border-slate-800 p-12 shadow-2xl text-center">
+                        <div class="bg-cyan-500 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-cyan-500/20">
                             <i data-lucide="target" class="text-white w-8 h-8"></i>
                         </div>
-                        <h1 class="text-3xl font-black text-white italic tracking-tighter mb-2">Cori<span class="text-cyan-400 font-light">Talks</span></h1>
-                        <p class="text-slate-500 text-sm mb-10">Plataforma de Impacto OKR</p>
+                        <h1 class="text-4xl font-black text-white italic tracking-tighter mb-2 uppercase">Cori<span class="text-cyan-400 font-light">Talks</span></h1>
+                        <p class="text-slate-500 text-sm font-medium mb-12">Plataforma Estratégica OKR Master</p>
+                        
                         <form onsubmit="event.preventDefault(); handleLogin(this.email.value, this.role.value, this.squad.value);" class="space-y-6 text-left">
-                            <input name="email" type="email" placeholder="email@comfamiliar.com" required class="w-full bg-slate-800 border border-slate-700 rounded-2xl px-6 py-4 text-white focus:ring-2 focus:ring-cyan-500 outline-none">
-                            <div class="grid grid-cols-2 gap-4">
-                                <select name="role" onchange="this.nextElementSibling.style.display = this.value === 'Super Admin' ? 'none' : 'block'" class="bg-slate-800 border border-slate-700 rounded-2xl px-4 py-4 text-white text-xs outline-none cursor-pointer">
-                                    ${state.roles.map(r => `<option value="${r}">${r}</option>`).join('')}
-                                </select>
-                                <select name="squad" class="bg-slate-800 border border-slate-700 rounded-2xl px-4 py-4 text-white text-xs outline-none cursor-pointer">
-                                    ${state.squads.map(s => `<option value="${s.id}">${s.name.split(' ')[1]}</option>`).join('')}
-                                </select>
+                            <div>
+                                <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 px-1">Email Corporativo</label>
+                                <input name="email" type="email" required placeholder="tu.nombre@comfamiliar.com" class="w-full bg-slate-800 border border-slate-700 rounded-2xl px-6 py-4 text-white focus:ring-2 focus:ring-cyan-500 outline-none transition-all">
                             </div>
-                            <button class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-black py-4 rounded-2xl shadow-xl shadow-cyan-900/20 transition-all">Ingresar al Dashboard</button>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 px-1">Rol</label>
+                                    <select name="role" onchange="document.getElementById('sqSelector').style.display = this.value === 'Super Admin' ? 'none' : 'block'" class="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-4 text-white text-xs outline-none cursor-pointer">
+                                        ${state.roles.map(r => `<option value="${r}">${r}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div id="sqSelector">
+                                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 px-1">Squad</label>
+                                    <select name="squad" class="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-4 text-white text-xs outline-none cursor-pointer">
+                                        ${state.squads.map(s => `<option value="${s.id}">${s.name.split(' ')[1]}</option>`).join('')}
+                                    </select>
+                                </div>
+                            </div>
+                            <button class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-black py-5 rounded-3xl shadow-xl shadow-cyan-900/20 transition-all active:scale-95">Ingresar al Sistema</button>
                         </form>
                     </div>
                 </div>
@@ -208,35 +371,38 @@
         }
 
         function renderSidebar() {
-            const tabs = [
+            const menu = [
                 { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
-                { id: 'projects', label: 'Mis Proyectos', icon: 'briefcase' },
-                { id: 'sync', label: 'Cloud Sync', icon: 'database' }
+                { id: 'projects', label: 'Proyectos', icon: 'briefcase' },
+                { id: 'sync', label: 'Cloud & Robots', icon: 'database' }
             ];
             return `
-                <aside class="w-72 bg-slate-950 text-white flex flex-col shrink-0 border-r border-slate-900">
-                    <div class="p-8 border-b border-slate-900">
-                        <div class="flex items-center gap-3 mb-8">
-                            <i data-lucide="target" class="text-cyan-400 w-6 h-6"></i>
-                            <h1 class="text-2xl font-black italic tracking-tight">Cori<span class="text-cyan-400 font-light">Talks</span></h1>
+                <aside class="w-80 bg-slate-950 text-white flex flex-col shrink-0 border-r border-slate-900 glass-sidebar">
+                    <div class="p-10 border-b border-slate-900 text-center">
+                        <div class="flex items-center justify-center gap-3 mb-10">
+                            <i data-lucide="target" class="text-cyan-400 w-8 h-8"></i>
+                            <h1 class="text-3xl font-black italic tracking-tight uppercase">Cori<span class="text-cyan-400 font-light">Talks</span></h1>
                         </div>
-                        <div class="p-4 bg-slate-900/50 rounded-2xl border border-slate-800 flex items-center gap-4">
-                            <div class="w-10 h-10 bg-cyan-600 rounded-xl flex items-center justify-center font-black text-sm uppercase">${state.user.name.substring(0,2)}</div>
+                        <div class="p-5 bg-slate-900/50 rounded-[2.5rem] border border-slate-800 flex items-center gap-4 text-left">
+                            <div class="w-12 h-12 bg-cyan-600 rounded-2xl flex items-center justify-center font-black text-lg">${state.user.name.substring(0,2).toUpperCase()}</div>
                             <div class="overflow-hidden">
-                                <p class="text-sm font-bold truncate leading-none mb-1">${state.user.name}</p>
-                                <p class="text-[10px] text-cyan-500 font-black uppercase tracking-tighter">${state.user.role}</p>
+                                <p class="text-base font-bold truncate leading-tight mb-1 capitalize">${state.user.name}</p>
+                                <p class="text-[10px] text-cyan-500 font-black uppercase tracking-tighter flex items-center gap-1">
+                                    <i data-lucide="shield-check" class="w-3 h-3"></i> ${state.user.role}
+                                </p>
                             </div>
                         </div>
                     </div>
-                    <nav class="flex-1 p-6 space-y-2">
-                        ${tabs.map(t => `
-                            <button onclick="state.activeTab = '${t.id}'; render();" class="w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${state.activeTab === t.id ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-900/20' : 'text-slate-500 hover:bg-slate-900 hover:text-white'}">
-                                <i data-lucide="${t.icon}" class="w-5 h-5"></i> <span class="text-sm font-bold">${t.label}</span>
+                    <nav class="flex-1 p-8 space-y-3">
+                        ${menu.map(item => `
+                            <button onclick="state.activeTab = '${item.id}'; render();" class="w-full flex items-center gap-5 px-6 py-5 rounded-2xl transition-all ${state.activeTab === item.id ? 'bg-cyan-600 text-white shadow-2xl shadow-cyan-900/40' : 'text-slate-500 hover:bg-slate-900 hover:text-white'}">
+                                <i data-lucide="${item.icon}" class="w-5 h-5"></i>
+                                <span class="text-sm font-bold uppercase tracking-widest">${item.label}</span>
                             </button>
                         `).join('')}
                     </nav>
-                    <div class="p-8 border-t border-slate-900">
-                        <button onclick="syncCloud()" class="w-full bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-2xl py-3 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest mb-4">
+                    <div class="p-10 border-t border-slate-900">
+                        <button onclick="syncWithSheets()" class="w-full bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-2xl py-4 flex items-center justify-center gap-3 font-black text-[10px] uppercase tracking-[0.2em] mb-4 transition-all">
                             <i data-lucide="${state.isSaving ? 'refresh-cw' : 'save'}" class="w-4 h-4 ${state.isSaving ? 'animate-spin' : ''}"></i> Sincronizar
                         </button>
                         <button onclick="state.user = null; render();" class="w-full flex items-center justify-center gap-2 text-slate-600 hover:text-red-400 text-[10px] font-black uppercase transition-colors">
@@ -247,38 +413,127 @@
             `;
         }
 
-        function renderDashboard(projects) {
-            const global = getGlobalProgress(projects);
+        function renderHeader(filtered) {
+            const global = getGlobalProgress(filtered);
             return `
-                <div class="animate-fade-in space-y-8">
-                    <header class="flex justify-between items-end">
+                <header class="flex justify-between items-end mb-12 animate-fade-in">
+                    <div>
+                        <h2 class="text-5xl font-black text-slate-900 tracking-tight mb-2 uppercase italic">Estrategia</h2>
+                        <p class="text-slate-500 font-medium italic">Visión táctica para <span class="text-cyan-600 font-bold underline underline-offset-4">${state.user.role === 'Super Admin' ? 'Comfamiliar Risaralda' : state.squads.find(s=>s.id===state.user.squadId).name}</span></p>
+                    </div>
+                    <div class="bg-white p-6 rounded-[3rem] border border-slate-100 shadow-sm flex items-center gap-8 pr-12">
+                        <div class="relative w-20 h-20 flex items-center justify-center">
+                            <svg class="w-full h-full progress-circle">
+                                <circle cx="40" cy="40" r="34" fill="transparent" stroke="#f1f5f9" stroke-width="8" />
+                                <circle cx="40" cy="40" r="34" fill="transparent" stroke="#0ea5e9" stroke-width="8" stroke-dasharray="213.6" stroke-dashoffset="${213.6 - (213.6 * global) / 100}" stroke-linecap="round" class="transition-all duration-1000" />
+                            </svg>
+                            <span class="absolute font-black text-xl text-slate-800">${global}%</span>
+                        </div>
                         <div>
-                            <h2 class="text-4xl font-black text-slate-900 tracking-tight">Dashboard Ejecutivo</h2>
-                            <p class="text-slate-500 font-medium mt-1 italic">Visualización estratégica para ${state.user.role === 'Super Admin' ? 'Toda la Organización' : state.squads.find(s=>s.id===state.user.squadId).name}</p>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">CUMPLIMIENTO</p>
+                            <p class="text-xs font-bold text-slate-600">Avance Estratégico Global</p>
                         </div>
-                        <div class="bg-white px-8 py-5 rounded-[2.5rem] card-shadow border border-slate-100 flex items-center gap-6">
-                            <div class="relative w-16 h-16 flex items-center justify-center">
-                                <svg class="w-full h-full -rotate-90">
-                                    <circle cx="32" cy="32" r="28" fill="transparent" stroke="#f1f5f9" stroke-width="6" />
-                                    <circle cx="32" cy="32" r="28" fill="transparent" stroke="#0ea5e9" stroke-width="6" stroke-dasharray="175.9" stroke-dashoffset="${175.9 - (175.9 * global) / 100}" stroke-linecap="round" />
-                                </svg>
-                                <span class="absolute font-black text-sm">${global}%</span>
-                            </div>
-                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Avance<br/>Estratégico</p>
-                        </div>
-                    </header>
+                    </div>
+                </header>
+            `;
+        }
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        ${projects.map(p => `
-                            <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100 group transition-all hover:-translate-y-1">
-                                <div class="flex justify-between items-start mb-6">
-                                    <div class="bg-slate-900 text-white px-3 py-1 rounded-lg font-black text-[10px]">${state.squads.find(s=>s.id===p.squadId).name.split(' ')[1]}</div>
-                                    <span class="text-2xl font-black text-cyan-600">${calculateProjectProgress(p)}%</span>
+        function renderDashboard(filtered) {
+            return `
+                <div class="animate-fade-in space-y-10">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        ${[
+                            { label: 'Proyectos', value: filtered.length, icon: 'activity', bg: 'bg-blue-100', color: 'text-blue-600' },
+                            { label: 'Objetivos', value: filtered.reduce((a,b)=>a+b.objectives.length, 0), icon: 'layers', bg: 'bg-indigo-100', color: 'text-indigo-600' },
+                            { label: 'KRs Totales', value: filtered.reduce((a,b)=>a+b.objectives.reduce((acc,o)=>acc+o.krs.length, 0), 0), icon: 'check-circle-2', bg: 'bg-emerald-100', color: 'text-emerald-600' },
+                            { label: 'Sync Activo', value: state.lastSync === 'Nunca' ? 'Inactivo' : 'Online', icon: 'globe', bg: 'bg-cyan-100', color: 'text-cyan-600' }
+                        ].map(s => `
+                            <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm group">
+                                <div class="w-12 h-12 rounded-2xl ${s.bg} ${s.color} flex items-center justify-center mb-6 shadow-inner"><i data-lucide="${s.icon}" class="w-6 h-6"></i></div>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">${s.label}</p>
+                                <p class="text-3xl font-black text-slate-900">${s.value}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="bg-white rounded-[4rem] p-12 border border-slate-200 shadow-sm relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none"><i data-lucide="bar-chart-3" class="w-64 h-64"></i></div>
+                        <h3 class="text-2xl font-black text-slate-900 mb-12 flex items-center gap-3"><i data-lucide="bar-chart-3" class="text-cyan-600"></i> Análisis Comparativo de Proyectos</h3>
+                        <div class="space-y-12">
+                            ${filtered.map(p => {
+                                const prog = getProjectProgress(p);
+                                return `
+                                    <div class="group">
+                                        <div class="flex justify-between items-end mb-4">
+                                            <div>
+                                                <p class="text-xs font-black text-cyan-600 uppercase tracking-widest mb-1">${p.id} · ${state.squads.find(s=>s.id===p.squadId).name.split(' ')[1]}</p>
+                                                <h4 class="text-xl font-bold text-slate-800">${p.name}</h4>
+                                            </div>
+                                            <span class="text-3xl font-black text-slate-900">${prog}%</span>
+                                        </div>
+                                        <div class="w-full bg-slate-50 h-6 rounded-full overflow-hidden shadow-inner p-1 border border-slate-100">
+                                            <div class="bg-gradient-to-r from-cyan-600 to-cyan-400 h-full rounded-full transition-all duration-1000 shadow-lg shadow-cyan-600/20" style="width: ${prog}%"></div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                            ${filtered.length === 0 ? '<p class="text-slate-400 italic text-center py-10">No hay proyectos para mostrar en este Squad.</p>' : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderProjects(filtered) {
+            return `
+                <div class="animate-fade-in space-y-10">
+                    <div class="flex justify-between items-center mb-10">
+                        <h3 class="text-2xl font-black text-slate-900 uppercase tracking-widest italic">Gestión de Iniciativas</h3>
+                        ${(state.user.role === 'PO' || state.user.role === 'Super Admin') ? `
+                            <button onclick="openProjectModal()" class="bg-slate-900 text-white px-10 py-6 rounded-[2.5rem] font-black text-xs uppercase tracking-widest flex items-center gap-3 hover:bg-cyan-600 transition-all shadow-xl active:scale-95">
+                                <i data-lucide="plus" class="w-4 h-4"></i> Crear Nuevo Proyecto
+                            </button>
+                        ` : ''}
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-10 pb-20">
+                        ${filtered.map(p => `
+                            <div class="bg-white rounded-[3.5rem] border border-slate-200 overflow-hidden relative shadow-sm hover:shadow-2xl transition-all group">
+                                <button onclick="openProjectModal('${p.id}')" class="absolute top-10 right-10 p-5 bg-slate-50 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-[1.5rem] transition-all">
+                                    <i data-lucide="edit-3" class="w-6 h-6"></i>
+                                </button>
+                                <div class="p-12 border-b border-slate-50 bg-slate-50/50">
+                                    <span class="bg-white border border-slate-200 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-500 shadow-sm inline-block mb-8">
+                                        ${state.squads.find(s=>s.id===p.squadId).name}
+                                    </span>
+                                    <h3 class="text-4xl font-black text-slate-900 mb-4 pr-16">${p.name}</h3>
+                                    <p class="text-base text-slate-500 leading-relaxed font-medium italic">"${p.description}"</p>
                                 </div>
-                                <h3 class="text-xl font-black text-slate-800 mb-2 truncate">${p.name}</h3>
-                                <p class="text-xs text-slate-400 font-medium mb-6 line-clamp-2 italic">"${p.description}"</p>
-                                <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                                    <div class="bg-cyan-500 h-full transition-all duration-1000" style="width: ${calculateProjectProgress(p)}%"></div>
+                                <div class="p-12 space-y-10">
+                                    <div class="space-y-6">
+                                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">OBJETIVOS ESTRATÉGICOS (${p.objectives.length})</p>
+                                        ${p.objectives.map(obj => `
+                                            <div class="bg-slate-50 p-6 rounded-[2.5rem] border border-slate-100">
+                                                <div class="flex justify-between items-center mb-4">
+                                                    <span class="text-base font-bold text-slate-800">${obj.title}</span>
+                                                    <span class="bg-white border border-slate-200 px-4 py-1.5 rounded-full text-[10px] font-black text-cyan-600 shadow-sm">${calculateObjectiveProgress(obj)}%</span>
+                                                </div>
+                                                <div class="flex -space-x-3">
+                                                    ${obj.krs.map(kr => `
+                                                        <div title="${kr.owner}: ${kr.definition}" class="w-10 h-10 rounded-2xl bg-slate-900 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white shadow-md">${kr.owner.substring(0,1).toUpperCase()}</div>
+                                                    `).join('')}
+                                                    ${obj.krs.length === 0 ? '<span class="text-[10px] text-slate-400 font-bold px-2 italic uppercase">Sin KRs</span>' : ''}
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                    <div class="pt-8 border-t border-slate-100 flex justify-between items-end">
+                                        <div>
+                                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">PROGRESO TOTAL</p>
+                                            <p class="text-5xl font-black text-cyan-600">${getProjectProgress(p)}%</p>
+                                        </div>
+                                        <button onclick="openProjectModal('${p.id}')" class="bg-slate-950 text-white p-5 rounded-[2rem] hover:bg-cyan-600 transition-all"><i data-lucide="arrow-right" class="w-6 h-6"></i></button>
+                                    </div>
                                 </div>
                             </div>
                         `).join('')}
@@ -287,48 +542,54 @@
             `;
         }
 
-        function renderProjects(projects) {
+        function renderSync() {
             return `
-                <div class="animate-fade-in space-y-8">
-                    <div class="flex justify-between items-center">
-                        <h2 class="text-4xl font-black text-slate-900 tracking-tight italic uppercase">Gestión de Estrategia</h2>
-                        <button onclick="openModal()" class="bg-slate-900 text-white px-8 py-5 rounded-[2rem] font-black text-xs uppercase tracking-widest flex items-center gap-3 hover:bg-cyan-600 transition-all shadow-xl">
-                            <i data-lucide="plus" class="w-4 h-4"></i> Nuevo Proyecto
-                        </button>
-                    </div>
+                <div class="animate-fade-in max-w-4xl mx-auto space-y-10 pb-20">
+                    <div class="bg-white p-12 rounded-[4rem] border border-slate-200 shadow-sm relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none"><i data-lucide="database" class="w-80 h-80"></i></div>
+                        <div class="flex items-center gap-8 mb-16 relative z-10">
+                            <div class="p-6 bg-cyan-100 text-cyan-600 rounded-[2.5rem] shadow-inner"><i data-lucide="database" class="w-16 h-16"></i></div>
+                            <div>
+                                <h2 class="text-4xl font-black text-slate-900 tracking-tight italic uppercase">Infraestructura Cloud</h2>
+                                <p class="text-slate-500 font-medium italic">Gestión de la comunicación bidireccional con Google Sheets.</p>
+                            </div>
+                        </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        ${projects.map(p => `
-                            <div class="bg-white rounded-[3rem] border border-slate-200 overflow-hidden relative card-shadow group">
-                                <button onclick="openModal('${p.id}')" class="absolute top-8 right-8 p-4 bg-slate-50 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-2xl transition-all shadow-sm">
-                                    <i data-lucide="edit-3" class="w-5 h-5"></i>
-                                </button>
-                                <div class="p-10 border-b border-slate-50 bg-slate-50/50">
-                                    <span class="bg-white border border-slate-200 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-500 shadow-sm inline-block mb-6">
-                                        ${state.squads.find(s=>s.id===p.squadId).name}
-                                    </span>
-                                    <h3 class="text-3xl font-black text-slate-900 mb-4 pr-12">${p.name}</h3>
-                                    <p class="text-sm text-slate-500 leading-relaxed font-medium italic">"${p.description}"</p>
+                        <div class="space-y-12 relative z-10">
+                            <div class="bg-slate-50 p-12 rounded-[3.5rem] border border-slate-200">
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-4 tracking-[0.2em] px-4">URL del Script de Google (API)</label>
+                                <div class="flex gap-4">
+                                    <input type="text" value="${state.sheetUrl}" onchange="state.sheetUrl = this.value" class="flex-1 bg-white border border-slate-200 rounded-3xl px-8 py-5 text-sm font-mono text-slate-600 outline-none focus:ring-4 focus:ring-cyan-500/10 transition-all shadow-sm">
+                                    <button onclick="syncWithSheets()" class="bg-slate-950 text-white px-10 rounded-3xl font-black uppercase text-[10px] tracking-widest hover:bg-cyan-600 transition-all shadow-xl active:scale-95">Vincular</button>
                                 </div>
-                                <div class="p-10 space-y-6">
-                                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">OBJETIVOS ESTRATÉGICOS (${p.objectives.length})</p>
-                                    <div class="space-y-4">
-                                        ${p.objectives.map(obj => `
-                                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
-                                                <span class="text-sm font-bold text-slate-800">${obj.title}</span>
-                                                <span class="text-[10px] font-black text-cyan-600 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm">${calculateObjectiveProgress(obj)}%</span>
-                                            </div>
-                                        `).join('')}
-                                    </div>
-                                    <div class="pt-6 border-t border-slate-100 flex justify-between items-end">
-                                        <div>
-                                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">AVANCE PROYECTO</p>
-                                            <p class="text-4xl font-black text-cyan-600">${calculateProjectProgress(p)}%</p>
+                                <p class="mt-6 text-[10px] text-slate-400 font-black uppercase tracking-widest px-4 italic">Sincronizado por última vez: <span class="text-cyan-600 font-black underline underline-offset-4">${state.lastSync}</span></p>
+                            </div>
+
+                            <!-- SECCIÓN ROBOT: NO SE QUITA -->
+                            <div class="border-t border-slate-100 pt-16">
+                                <div class="flex items-center gap-4 mb-8">
+                                    <div class="p-4 bg-indigo-100 text-indigo-600 rounded-2xl"><i data-lucide="cpu" class="w-8 h-8"></i></div>
+                                    <h3 class="text-3xl font-black text-slate-900 italic tracking-tight">Laboratorio de Pruebas (Robot)</h3>
+                                </div>
+                                <p class="text-sm text-slate-500 mb-10 font-medium leading-relaxed">Ejecuta el robot para inyectar datos complejos en la arquitectura jerárquica y verificar el comportamiento del Dashboard global.</p>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <button onclick="runTestRobot()" class="flex items-center justify-between p-12 bg-indigo-50 border border-indigo-100 rounded-[3.5rem] hover:bg-indigo-100 transition-all group active:scale-95 shadow-sm">
+                                        <div class="text-left">
+                                            <p class="text-xl font-black text-indigo-700 italic">Poblar Dashboard</p>
+                                            <p class="text-[10px] text-indigo-500 font-black uppercase mt-2 tracking-widest">Generar 4 Proyectos OKR</p>
                                         </div>
-                                    </div>
+                                        <div class="p-4 bg-white rounded-3xl shadow-sm group-hover:bg-indigo-600 group-hover:text-white transition-all"><i data-lucide="zap" class="w-10 h-10"></i></div>
+                                    </button>
+                                    <button onclick="clearRobotData()" class="flex items-center justify-between p-12 bg-red-50 border border-red-100 rounded-[3.5rem] hover:bg-red-100 transition-all group active:scale-95 shadow-sm">
+                                        <div class="text-left">
+                                            <p class="text-xl font-black text-red-700 italic">Limpiar Lab</p>
+                                            <p class="text-[10px] text-red-500 font-black uppercase mt-2 tracking-widest">Borrar Inyecciones</p>
+                                        </div>
+                                        <div class="p-4 bg-white rounded-3xl shadow-sm group-hover:bg-red-600 group-hover:text-white transition-all"><i data-lucide="trash-2" class="w-10 h-10"></i></div>
+                                    </button>
                                 </div>
                             </div>
-                        `).join('')}
+                        </div>
                     </div>
                 </div>
             `;
@@ -337,94 +598,91 @@
         function renderModal() {
             const p = state.editingProject;
             return `
-                <div class="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-6 overflow-hidden animate-fade-in">
-                    <div class="bg-white w-full max-w-5xl h-[90vh] rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden">
-                        <div class="p-10 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <div class="fixed inset-0 z-[100] modal-overlay flex items-center justify-center p-6 overflow-hidden animate-fade-in">
+                    <div class="bg-white w-full max-w-6xl h-[92vh] rounded-[4.5rem] shadow-2xl flex flex-col overflow-hidden animate-fade-in">
+                        <div class="p-12 border-b border-slate-100 flex justify-between items-center bg-slate-50/30">
                             <div>
-                                <h2 class="text-3xl font-black text-slate-900 tracking-tight italic">Configuración Estratégica</h2>
-                                <p class="text-slate-500 font-medium">Define los objetivos y resultados clave para el éxito.</p>
+                                <h2 class="text-4xl font-black text-slate-900 tracking-tight italic uppercase">${p.id.startsWith('P') && p.name ? 'Editar Estrategia' : 'Diseñar Nueva Iniciativa'}</h2>
+                                <p class="text-slate-500 font-medium italic mt-1">Configuración multinivel de objetivos tácticos y resultados clave.</p>
                             </div>
-                            <button onclick="state.showModal = false; render();" class="p-4 bg-white hover:bg-slate-100 rounded-3xl text-slate-400 border border-slate-200 shadow-sm transition-all"><i data-lucide="x" class="w-6 h-6"></i></button>
+                            <button onclick="state.showModal = false; render();" class="p-6 bg-white hover:bg-slate-100 rounded-[2.5rem] text-slate-400 border border-slate-200 transition-all shadow-sm"><i data-lucide="x" class="w-8 h-8"></i></button>
                         </div>
 
-                        <div class="flex-1 overflow-y-auto p-10 custom-scrollbar space-y-12">
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
-                                <div class="space-y-6">
-                                    <div>
-                                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Nombre del Proyecto</label>
-                                        <input type="text" value="${p.name}" onchange="state.editingProject.name = this.value" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 outline-none focus:ring-4 focus:ring-cyan-500/10 font-bold text-lg">
+                        <div class="flex-1 overflow-y-auto p-12 custom-scrollbar space-y-12">
+                            <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                                <!-- Col Izquierda -->
+                                <div class="lg:col-span-4 space-y-8">
+                                    <div class="bg-slate-50 p-10 rounded-[3rem] border border-slate-200">
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest px-1">Título del Proyecto</label>
+                                        <input type="text" value="${p.name}" onchange="state.editingProject.name = this.value" placeholder="Nombre..." class="w-full bg-white border border-slate-200 rounded-3xl px-8 py-5 outline-none font-black text-xl focus:ring-4 focus:ring-cyan-500/10 transition-all">
                                     </div>
-                                    <div>
-                                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Reseña</label>
-                                        <textarea onchange="state.editingProject.description = this.value" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 h-32 outline-none focus:ring-4 focus:ring-cyan-500/10 font-medium">${p.description}</textarea>
+                                    <div class="bg-slate-50 p-10 rounded-[3rem] border border-slate-200">
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest px-1">Reseña Estratégica</label>
+                                        <textarea onchange="state.editingProject.description = this.value" placeholder="Visión..." class="w-full bg-white border border-slate-200 rounded-3xl px-8 py-5 h-48 outline-none font-bold text-sm leading-relaxed">${p.description}</textarea>
+                                    </div>
+                                    <div class="bg-slate-50 p-10 rounded-[3rem] border border-slate-200">
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest px-1">Squad Responsable</label>
+                                        <select onchange="state.editingProject.squadId = this.value" class="w-full bg-white border border-slate-200 rounded-3xl px-8 py-5 font-black text-sm outline-none cursor-pointer">
+                                            ${state.squads.map(s => `<option value="${s.id}" ${p.squadId === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+                                        </select>
                                     </div>
                                 </div>
 
-                                <div class="md:col-span-2 space-y-8">
-                                    <div class="flex justify-between items-center mb-6">
-                                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">OBJETIVOS Y RESULTADOS (OKRs)</p>
-                                        <button onclick="addObjective()" class="bg-cyan-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-cyan-700 transition-all"><i data-lucide="plus" class="w-3 h-3"></i> Nuevo Objetivo</button>
+                                <!-- Col Derecha: OKRs -->
+                                <div class="lg:col-span-8 space-y-10">
+                                    <div class="flex justify-between items-center mb-8 bg-white/50 p-4 rounded-3xl border border-dashed border-slate-200">
+                                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] px-4 italic">Jerarquía OKR</p>
+                                        <button onclick="addObjective()" class="bg-cyan-600 text-white px-8 py-4 rounded-3xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-cyan-700 shadow-xl transition-all"><i data-lucide="plus" class="w-4 h-4"></i> Nuevo Objetivo</button>
                                     </div>
 
-                                    <div class="space-y-8">
+                                    <div class="space-y-12">
                                         ${p.objectives.map((obj, oIdx) => `
-                                            <div class="bg-slate-50 border border-slate-200 rounded-[2.5rem] overflow-hidden">
-                                                <div class="p-6 bg-white border-b border-slate-100 flex items-center gap-4">
-                                                    <div class="w-10 h-10 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-xs">O${oIdx+1}</div>
-                                                    <input type="text" value="${obj.title}" onchange="state.editingProject.objectives[${oIdx}].title = this.value" class="flex-1 font-black text-slate-800 outline-none bg-transparent">
-                                                    <button onclick="addKR(${oIdx})" class="text-cyan-600 text-[10px] font-black uppercase tracking-widest flex items-center gap-1 hover:underline"><i data-lucide="plus" class="w-3 h-3"></i> KR</button>
+                                            <div class="bg-slate-50 border border-slate-200 rounded-[3.5rem] overflow-hidden shadow-sm hover:shadow-lg transition-shadow">
+                                                <div class="p-10 bg-white border-b border-slate-100 flex items-center gap-8">
+                                                    <div class="w-14 h-14 bg-slate-900 rounded-[1.5rem] flex items-center justify-center text-white font-black text-lg shadow-xl">O${oIdx+1}</div>
+                                                    <input type="text" value="${obj.title}" onchange="state.editingProject.objectives[${oIdx}].title = this.value" class="flex-1 font-black text-2xl text-slate-800 outline-none bg-transparent focus:text-cyan-600 transition-colors">
+                                                    <div class="flex gap-4">
+                                                        <button onclick="addKR(${oIdx})" class="bg-cyan-50 text-cyan-600 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1 hover:bg-cyan-600 hover:text-white transition-all"><i data-lucide="plus" class="w-3 h-3"></i> KR</button>
+                                                        <button onclick="deleteObjective(${oIdx})" class="text-slate-200 hover:text-red-500 transition-colors"><i data-lucide="trash-2" class="w-6 h-6"></i></button>
+                                                    </div>
                                                 </div>
-                                                <div class="p-6 space-y-3">
+                                                <div class="p-10 space-y-4">
                                                     ${obj.krs.map((kr, kIdx) => `
-                                                        <div class="grid grid-cols-12 gap-4 bg-white p-4 rounded-2xl border border-slate-100 items-center shadow-sm">
-                                                            <div class="col-span-6 font-bold text-xs"><input type="text" value="${kr.definition}" onchange="state.editingProject.objectives[${oIdx}].krs[${kIdx}].definition = this.value" class="w-full outline-none"></div>
-                                                            <div class="col-span-3 flex items-center gap-2 bg-slate-50 px-3 py-1 rounded-lg">
-                                                                <input type="number" value="${kr.current}" onchange="state.editingProject.objectives[${oIdx}].krs[${kIdx}].current = parseFloat(this.value)" class="w-full text-center font-black text-[10px] bg-transparent">
-                                                                <span class="text-slate-300">/</span>
-                                                                <input type="number" value="${kr.target}" onchange="state.editingProject.objectives[${oIdx}].krs[${kIdx}].target = parseFloat(this.value)" class="w-full text-center font-black text-[10px] bg-transparent text-slate-400">
+                                                        <div class="grid grid-cols-12 gap-6 bg-white p-8 rounded-[2rem] border border-slate-100 items-center shadow-sm">
+                                                            <div class="col-span-5">
+                                                                <input type="text" value="${kr.definition}" onchange="state.editingProject.objectives[${oIdx}].krs[${kIdx}].definition = this.value" class="w-full text-sm font-bold text-slate-700 outline-none" placeholder="Definición del KR">
                                                             </div>
-                                                            <div class="col-span-2 text-[10px] font-bold text-slate-400 uppercase truncate">${kr.owner}</div>
+                                                            <div class="col-span-3 flex items-center gap-4 bg-slate-50 px-6 py-3 rounded-2xl">
+                                                                <input type="number" value="${kr.current}" onchange="state.editingProject.objectives[${oIdx}].krs[${kIdx}].current = parseFloat(this.value)" class="w-full text-center font-black text-base bg-transparent outline-none">
+                                                                <span class="text-slate-300 font-black">/</span>
+                                                                <input type="number" value="${kr.target}" onchange="state.editingProject.objectives[${oIdx}].krs[${kIdx}].target = parseFloat(this.value)" class="w-full text-center font-black text-sm bg-transparent text-slate-400 outline-none">
+                                                            </div>
+                                                            <div class="col-span-3">
+                                                                <div class="bg-slate-50 px-6 py-3 rounded-2xl border border-slate-100 flex items-center gap-3">
+                                                                    <i data-lucide="user" class="w-3 h-3 text-slate-400"></i>
+                                                                    <input type="text" value="${kr.owner}" onchange="state.editingProject.objectives[${oIdx}].krs[${kIdx}].owner = this.value" class="w-full text-[10px] font-black text-slate-500 bg-transparent uppercase outline-none">
+                                                                </div>
+                                                            </div>
                                                             <div class="col-span-1 flex justify-end">
-                                                                <button onclick="state.editingProject.objectives[${oIdx}].krs.splice(${kIdx}, 1); render();" class="text-slate-300 hover:text-red-500 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                                                <button onclick="deleteKR(${oIdx}, ${kIdx})" class="text-slate-200 hover:text-red-500 transition-colors"><i data-lucide="x-circle" class="w-5 h-5"></i></button>
                                                             </div>
                                                         </div>
                                                     `).join('')}
-                                                    ${obj.krs.length === 0 ? '<p class="text-[10px] text-slate-400 italic text-center py-2">Sin resultados clave. Pulsa "+ KR" para añadir.</p>' : ''}
+                                                    ${obj.krs.length === 0 ? '<p class="text-[10px] text-slate-400 italic text-center py-10 border-2 border-dashed border-slate-200 rounded-[2.5rem] bg-slate-100/30">Añade tu primer Resultado Clave para este objetivo.</p>' : ''}
                                                 </div>
                                             </div>
                                         `).join('')}
+                                        ${p.objectives.length === 0 ? '<div class="text-center py-20 bg-slate-100/50 border-2 border-dashed border-slate-200 rounded-[4rem] flex flex-col items-center gap-4"><i data-lucide="layers" class="w-12 h-12 text-slate-300"></i><p class="text-slate-400 italic font-medium">No se han definido objetivos estratégicos para este proyecto.</p></div>' : ''}
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="p-10 border-t border-slate-100 bg-slate-50/50 flex gap-4">
-                            <button onclick="saveProject()" class="flex-1 bg-slate-900 text-white font-black py-6 rounded-[2rem] uppercase text-xs tracking-[0.2em] shadow-2xl hover:bg-cyan-600 active:scale-95 transition-all">Guardar Estrategia</button>
-                            <button onclick="state.showModal = false; render();" class="px-10 border border-slate-200 font-black py-6 rounded-[2rem] uppercase text-xs tracking-[0.2em] hover:bg-white transition-all">Cancelar</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function renderSync() {
-            return `
-                <div class="animate-fade-in max-w-4xl mx-auto space-y-8">
-                    <div class="bg-white p-12 rounded-[3.5rem] card-shadow border border-slate-200 relative overflow-hidden">
-                        <div class="absolute top-0 right-0 p-12 opacity-5 pointer-events-none"><i data-lucide="database" class="w-48 h-48"></i></div>
-                        <div class="flex items-center gap-6 mb-12 relative z-10">
-                            <div class="p-5 bg-cyan-100 text-cyan-600 rounded-[2rem] shadow-inner"><i data-lucide="database" class="w-12 h-12"></i></div>
-                            <div><h2 class="text-3xl font-black text-slate-900 tracking-tight">Infraestructura Cloud</h2><p class="text-slate-500 font-medium">Control total de la sincronización bidireccional.</p></div>
-                        </div>
-                        <div class="space-y-6 relative z-10">
-                            <div class="bg-slate-50 p-10 rounded-[2.5rem] border border-slate-200">
-                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest">URL del Script de Google (API)</label>
-                                <div class="flex gap-4">
-                                    <input type="text" value="${state.sheetUrl}" onchange="state.sheetUrl = this.value" class="flex-1 bg-white border border-slate-200 rounded-2xl px-6 py-4 text-xs font-mono text-slate-600 outline-none">
-                                    <button onclick="syncCloud()" class="bg-slate-900 text-white px-8 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-cyan-600">Vincular</button>
-                                </div>
-                                <p class="mt-4 text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Última Actualización: <span class="text-cyan-600">${state.lastSync}</span></p>
-                            </div>
+                        <div class="p-12 border-t border-slate-100 bg-slate-50/50 flex gap-6">
+                            <button onclick="saveProject()" class="flex-1 bg-slate-900 text-white font-black py-8 rounded-[3rem] uppercase text-sm tracking-[0.4em] shadow-2xl hover:bg-cyan-600 transition-all active:scale-95 flex items-center justify-center gap-4">
+                                <i data-lucide="check-circle" class="w-7 h-7"></i> Consolidar Master Estratégico
+                            </button>
+                            <button onclick="state.showModal = false; render();" class="px-16 border-2 border-slate-200 font-black py-8 rounded-[3rem] uppercase text-sm tracking-[0.4em] hover:bg-white transition-all active:scale-95 italic">Descartar</button>
                         </div>
                     </div>
                 </div>
@@ -434,15 +692,16 @@
         function renderNotification() {
             if (!state.notification) return '';
             return `
-                <div class="fixed top-6 right-6 z-[200] px-8 py-5 rounded-[2rem] shadow-2xl border animate-fade-in ${state.notification.type === 'error' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-white text-slate-800 border-slate-100'} flex items-center gap-4">
-                    <i data-lucide="${state.notification.type === 'error' ? 'alert-circle' : 'check-circle-2'}" class="w-6 h-6"></i>
-                    <p class="font-bold text-sm uppercase tracking-tighter">${state.notification.msg}</p>
+                <div class="fixed top-10 right-10 z-[200] px-12 py-8 rounded-[3rem] shadow-2xl border animate-fade-in ${state.notification.type === 'error' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-white text-slate-800 border-slate-100'} flex items-center gap-8 card-shadow">
+                    <i data-lucide="${state.notification.type === 'error' ? 'alert-triangle' : 'check-circle-2'}" class="w-10 h-10"></i>
+                    <p class="font-black text-base uppercase tracking-widest italic">${state.notification.msg}</p>
                 </div>
             `;
         }
 
-        // --- INIT ---
+        // --- INICIALIZACIÓN ---
         window.onload = render;
+
     </script>
 </body>
 </html>
