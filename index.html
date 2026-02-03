@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,48 +8,73 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
-        
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
         :root {
             --primary: #0ea5e9;
+            --primary-glow: rgba(14, 165, 233, 0.4);
             --secondary: #6366f1;
             --dark: #0f172a;
         }
 
-        body { 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
             scroll-behavior: smooth;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1,
+        h2,
+        h3,
+        .font-heading {
+            font-family: 'Outfit', sans-serif;
         }
 
         .glass-sidebar {
-            background: rgba(15, 23, 42, 0.98);
-            backdrop-filter: blur(12px);
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        .card-premium {
-            background: white;
-            border-radius: 2.5rem;
-            border: 1px solid #f1f5f9;
-            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .card-premium:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.08);
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
         }
 
         .animate-fade-in {
-            animation: fadeIn 0.4s ease-out forwards;
+            animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .animate-scale-in {
+            animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+            opacity: 0;
+            transform: scale(0.95);
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(15px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes scaleIn {
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
         }
 
         .custom-scrollbar::-webkit-scrollbar {
             width: 6px;
+            height: 6px;
         }
 
         .custom-scrollbar::-webkit-scrollbar-track {
@@ -56,530 +82,763 @@
         }
 
         .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #e2e8f0;
-            border-radius: 10px;
+            background: #cbd5e1;
+            border-radius: 999px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
         }
 
         .progress-circle {
             transform: rotate(-90deg);
+            transition: stroke-dashoffset 1s ease-in-out;
         }
-        
+
         .modal-overlay {
-            background: rgba(15, 23, 42, 0.8);
+            background: rgba(15, 23, 42, 0.6);
             backdrop-filter: blur(8px);
+        }
+
+        .btn-hover-effect {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-hover-effect:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px var(--primary-glow);
         }
     </style>
 </head>
-<body class="bg-[#F8FAFC] text-slate-900 h-screen overflow-hidden">
+
+<body class="bg-slate-50 text-slate-900 h-screen overflow-hidden selection:bg-cyan-100 selection:text-cyan-900">
 
     <div id="app" class="h-full w-full">
         <!-- Render dinámico -->
     </div>
 
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="fixed top-6 right-6 z-[300] flex flex-col gap-4 pointer-events-none"></div>
+
     <script>
-        // --- ESTADO GLOBAL ---
-        const DEFAULT_SHEET_URL = "https://script.google.com/macros/s/AKfycbz9hTBQlGDWQIWHFUvDookbqzc4YSYu2cCY997YvwgksQoWKkl_Hx7-58dYBv3-yGl9zQ/exec";
-        
-        let state = {
-            user: null, 
-            activeTab: 'dashboard',
-            isLoading: false,
-            isSaving: false,
-            sheetUrl: DEFAULT_SHEET_URL,
-            lastSync: "Nunca",
-            showModal: false,
-            editingProject: null,
-            notification: null,
-            squads: [
-                { id: 'S1', name: 'Squad Alpha (Cori Talks)' },
-                { id: 'S2', name: 'Squad Beta (LMS Optimization)' },
-                { id: 'S3', name: 'Squad Gamma (Innovación)' }
-            ],
-            roles: ['Super Admin', 'PO', 'Scrum Master', 'Developer'],
-            projects: [
-                {
-                    id: 'P1',
-                    squadId: 'S1',
-                    name: "Cori Talks",
-                    description: "Espacio diseñado para conectar e inspirar a través del intercambio de conocimiento corporativo.",
-                    participants: [{ name: 'Admin', role: 'Super Admin' }],
-                    objectives: [
-                        {
-                            id: 'O1',
-                            title: "Fortalecer la cultura de aprendizaje colaborativo",
-                            krs: [
-                                { id: 'KR1.1', definition: 'Lograr 40% de conexión trimestral', target: 40, current: 28, owner: 'Gestión Humana' },
-                                { id: 'KR1.2', definition: 'Alcanzar 85% de satisfacción NPS', target: 85, current: 80, owner: 'Comunicaciones' }
-                            ]
-                        }
-                    ]
-                }
-            ]
+        // ==========================================
+        // CONFIG & UTILS
+        // ==========================================
+        const CONFIG = {
+            DEFAULT_SHEET_URL: "https://script.google.com/macros/s/AKfycbz9hTBQlGDWQIWHFUvDookbqzc4YSYu2cCY997YvwgksQoWKkl_Hx7-58dYBv3-yGl9zQ/exec",
+            HEADERS: ['SQUAD_ID', 'PROJECT_ID', 'PROJECT_NAME', 'KR_ID', 'DEFINICION', 'META', 'ACTUAL', 'RESPONSABLE', 'VENCIMIENTO'],
+            ANIMATION_DELAY: 50
         };
 
-        // --- CÁLCULOS ---
-        function getProjectProgress(project) {
-            if (!project.objectives || project.objectives.length === 0) return 0;
-            const objProgresses = project.objectives.map(obj => {
-                if (!obj.krs || obj.krs.length === 0) return 0;
-                const krAvg = obj.krs.reduce((sum, kr) => sum + Math.min(kr.current / kr.target, 1), 0);
-                return krAvg / obj.krs.length;
-            });
-            const total = objProgresses.reduce((a, b) => a + b, 0);
-            return Math.round((total / project.objectives.length) * 100);
-        }
+        const Utils = {
+            id: (prefix = 'ID') => prefix + '-' + Date.now() + Math.floor(Math.random() * 1000),
 
-        function calculateObjectiveProgress(objective) {
-            if (!objective.krs || objective.krs.length === 0) return 0;
-            const total = objective.krs.reduce((acc, kr) => acc + (Math.min(kr.current / kr.target, 1)), 0);
-            return Math.round((total / objective.krs.length) * 100);
-        }
+            flattenProjects: (projects) => {
+                const rows = [];
+                projects.forEach(p => {
+                    const base = {
+                        SQUAD_ID: p.squadId,
+                        PROJECT_ID: p.id,
+                        PROJECT_NAME: p.name
+                    };
 
-        function getGlobalProgress(filteredProjects) {
-            if (filteredProjects.length === 0) return 0;
-            const total = filteredProjects.reduce((sum, p) => sum + getProjectProgress(p), 0);
-            return Math.round(total / filteredProjects.length);
-        }
+                    if (!p.objectives || p.objectives.length === 0) {
+                        rows.push({ ...base, KR_ID: '' }); // Proyecto sin objetivos
+                    } else {
+                        p.objectives.forEach(obj => {
+                            if (!obj.krs || obj.krs.length === 0) {
+                                // Objetivo sin KRs (opcional, si queremos guardarlo, necesitamos adaptar backend headers o lógica)
+                                // Por ahora, el backend espera KRs.
+                            } else {
+                                obj.krs.forEach(kr => {
+                                    rows.push({
+                                        ...base,
+                                        KR_ID: kr.id,
+                                        DEFINICION: kr.definition,
+                                        META: kr.target,
+                                        ACTUAL: kr.current,
+                                        RESPONSABLE: kr.owner,
+                                        VENCIMIENTO: '2024-12-31' // Placeholder
+                                    });
+                                });
+                            }
+                        });
+                    }
+                });
+                return rows;
+            },
 
-        // --- ACCIONES ---
-        function notify(msg, type = 'success') {
-            state.notification = { msg, type };
-            render();
-            setTimeout(() => { state.notification = null; render(); }, 3000);
-        }
-
-        function handleLogin(email, role, squadId) {
-            state.user = {
-                name: email.split('@')[0],
-                role: role,
-                squadId: role === 'Super Admin' ? null : squadId
-            };
-            render();
-        }
-
-        function openProjectModal(projectId = null) {
-            if (projectId) {
-                const p = state.projects.find(proj => proj.id === projectId);
-                state.editingProject = JSON.parse(JSON.stringify(p));
-            } else {
-                state.editingProject = {
-                    id: 'P' + Date.now(),
-                    squadId: state.user.squadId || 'S1',
-                    name: '',
-                    description: '',
-                    participants: [{ name: state.user.name, role: state.user.role }],
-                    objectives: []
-                };
+            calculateProgress: {
+                project: (p) => {
+                    if (!p.objectives?.length) return 0;
+                    const objScores = p.objectives.map(o => Utils.calculateProgress.objective(o));
+                    return Math.round(objScores.reduce((a, b) => a + b, 0) / p.objectives.length);
+                },
+                objective: (o) => {
+                    if (!o.krs?.length) return 0;
+                    const krScores = o.krs.map(kr => Math.min((kr.current / kr.target) || 0, 1));
+                    return Math.round((krScores.reduce((a, b) => a + b, 0) / o.krs.length) * 100);
+                }
             }
-            state.showModal = true;
-            render();
-        }
+        };
 
-        function saveProject() {
-            if (!state.editingProject.name) return notify("El nombre es obligatorio", "error");
-            
-            const index = state.projects.findIndex(p => p.id === state.editingProject.id);
-            if (index !== -1) {
-                state.projects[index] = state.editingProject;
-                notify("Proyecto actualizado");
-            } else {
-                state.projects.push(state.editingProject);
-                notify("Proyecto creado con éxito");
+        // ==========================================
+        // STATE MANAGEMENT
+        // ==========================================
+        const State = {
+            data: {
+                user: null,
+                activeTab: 'dashboard',
+                isLoading: false,
+                sheetUrl: localStorage.getItem('okr_sheet_url') || CONFIG.DEFAULT_SHEET_URL,
+                lastSync: "Nunca",
+                showModal: false,
+                editingProject: null,
+                squads: [
+                    { id: 'S1', name: 'Squad Alpha (Cori Talks)' },
+                    { id: 'S2', name: 'Squad Beta (LMS Optimization)' },
+                    { id: 'S3', name: 'Squad Gamma (Innovación)' }
+                ],
+                roles: ['Super Admin', 'PO', 'Scrum Master', 'Developer'],
+                projects: [
+                    // Mock inicial
+                    {
+                        id: 'P1',
+                        squadId: 'S1',
+                        name: "Cori Talks",
+                        description: "Espacio diseñado para conectar e inspirar a través del intercambio de conocimiento corporativo.",
+                        participants: [{ name: 'Admin', role: 'Super Admin' }],
+                        objectives: [
+                            {
+                                id: 'O1',
+                                title: "Fortalecer la cultura de aprendizaje colaborativo",
+                                krs: [
+                                    { id: 'KR1.1', definition: 'Lograr 40% de conexión trimestral', target: 40, current: 28, owner: 'Gestión Humana' },
+                                    { id: 'KR1.2', definition: 'Alcanzar 85% de satisfacción NPS', target: 85, current: 80, owner: 'Comunicaciones' }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            },
+
+            update(updates) {
+                Object.assign(this.data, updates);
+                UI.render();
+            },
+
+            // PERSISTENCE ACTIONS
+            async sync() {
+                try {
+                    UI.notify("Iniciando sincronización...", "info");
+
+                    const payload = Utils.flattenProjects(this.data.projects);
+
+                    const response = await fetch(this.data.sheetUrl, {
+                        method: 'POST',
+                        mode: 'no-cors', // IMPORTANT for GAS Simple Triggers unless Web App permissions allow CORS
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    // NOTA: with 'no-cors', we get an opaque response. We can't verify execution 100% in frontend without a proxy or correct CORS headers from GAS.
+                    // Assuming success for UX flow if no network error.
+                    // For Production: Deploy GAS as "User accessing the web app" (Execute as Me) + "Who has access: Anyone".
+
+                    const now = new Date().toLocaleTimeString();
+                    this.update({ lastSync: now });
+                    UI.notify("Datos enviados a la nube", "success");
+
+                } catch (e) {
+                    console.error(e);
+                    UI.notify("Error de conexión con Sheets", "error");
+                }
             }
-            state.showModal = false;
-            state.editingProject = null;
-            render();
-        }
+        };
 
-        function addObjective() {
-            state.editingProject.objectives.push({
-                id: 'O' + (state.editingProject.objectives.length + 1),
-                title: 'Nuevo Objetivo Estratégico',
-                krs: []
-            });
-            render();
-        }
+        // ==========================================
+        // UI COMPONENTS
+        // ==========================================
+        const UI = {
+            notify(msg, type = 'success') {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
 
-        function addKR(objIdx) {
-            const obj = state.editingProject.objectives[objIdx];
-            obj.krs.push({
-                id: `KR${objIdx+1}.${obj.krs.length + 1}`,
-                definition: 'Nuevo Resultado Clave',
-                target: 100,
-                current: 0,
-                owner: state.user.name
-            });
-            render();
-        }
+                const colors = type === 'error' ? 'bg-red-50 text-red-600 border-red-200' :
+                    type === 'info' ? 'bg-blue-50 text-blue-600 border-blue-200' :
+                        'bg-emerald-50 text-emerald-600 border-emerald-200';
 
-        // --- ROBOT ---
-        function runTestRobot() {
-            state.isLoading = true;
-            render();
-            setTimeout(() => {
-                const robotData = [
-                    { name: "IA en Procesos", squad: 'S3' },
-                    { name: "Ciberseguridad 360", squad: 'S2' },
-                    { name: "Talento Humano 4.0", squad: 'S1' },
-                    { name: "Infraestructura Cloud", squad: 'S2' }
-                ];
-                const newOnes = robotData.map((rd, i) => ({
-                    id: 'PROBOT-' + (Date.now() + i),
-                    squadId: rd.squad,
-                    name: rd.name,
-                    description: "Inyectado por Robot de Pruebas.",
-                    participants: [{ name: 'Robot', role: 'Developer' }],
-                    objectives: [{
-                        id: 'O1',
-                        title: "Optimización General",
-                        krs: [{ id: 'KR1.1', definition: 'Mejorar métricas en 15%', target: 100, current: 45, owner: 'Bot' }]
-                    }]
-                }));
-                state.projects = [...state.projects, ...newOnes];
-                state.isLoading = false;
-                notify("Robot: 4 proyectos inyectados");
-                render();
-            }, 1000);
-        }
+                const icon = type === 'error' ? 'alert-circle' : type === 'info' ? 'loader-2' : 'check-circle-2';
 
-        // --- RENDERIZADO ---
-        function render() {
-            const app = document.getElementById('app');
-            if (!state.user) {
-                app.innerHTML = renderLogin();
-            } else {
-                const filtered = state.user.role === 'Super Admin' 
-                    ? state.projects 
-                    : state.projects.filter(p => p.squadId === state.user.squadId);
-                
-                app.innerHTML = `
-                    <div class="flex h-full w-full overflow-hidden">
-                        ${renderSidebar()}
-                        <main class="flex-1 overflow-y-auto p-10 bg-[#F8FAFC] custom-scrollbar relative">
-                            ${state.notification ? renderNotification() : ''}
-                            <div class="max-w-6xl mx-auto">
-                                ${renderHeader(filtered)}
-                                ${state.activeTab === 'dashboard' ? renderDashboard(filtered) : ''}
-                                ${state.activeTab === 'projects' ? renderProjects(filtered) : ''}
-                                ${state.activeTab === 'sync' ? renderSync() : ''}
-                            </div>
-                        </main>
-                    </div>
-                    ${state.showModal ? renderModal() : ''}
-                `;
-            }
-            lucide.createIcons();
-        }
+                toast.className = `transform translate-x-full transition-all duration-500 ease-out flex items-center gap-3 px-6 py-4 rounded-2xl shadow-xl border ${colors} backdrop-blur-md`;
+                toast.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5 ${type === 'info' ? 'animate-spin' : ''}"></i> <span class="font-bold text-sm tracking-wide">${msg}</span>`;
 
-        function renderLogin() {
-            return `
-                <div class="min-h-screen bg-slate-950 flex items-center justify-center p-6 animate-fade-in">
-                    <div class="max-w-md w-full bg-slate-900 rounded-[3.5rem] border border-slate-800 p-12 shadow-2xl text-center">
-                        <div class="bg-cyan-500 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-cyan-500/20">
-                            <i data-lucide="target" class="text-white w-8 h-8"></i>
+                container.appendChild(toast);
+                lucide.createIcons();
+
+                // Animate in
+                requestAnimationFrame(() => toast.classList.remove('translate-x-full'));
+
+                // Remove
+                setTimeout(() => {
+                    toast.classList.add('opacity-0', 'translate-y-[-10px]');
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            },
+
+            render() {
+                const app = document.getElementById('app');
+                if (!State.data.user) {
+                    app.innerHTML = Templates.Login();
+                } else {
+                    // Filter Logic
+                    const filtered = State.data.user.role === 'Super Admin'
+                        ? State.data.projects
+                        : State.data.projects.filter(p => p.squadId === State.data.user.squadId);
+
+                    app.innerHTML = `
+                        <div class="flex h-full w-full overflow-hidden bg-slate-50">
+                            ${Templates.Sidebar()}
+                            <main class="flex-1 overflow-y-auto p-8 lg:p-12 custom-scrollbar relative">
+                                <div class="max-w-7xl mx-auto space-y-12">
+                                    ${Templates.Header(filtered)}
+                                    ${State.data.activeTab === 'dashboard' ? Templates.Dashboard(filtered) : ''}
+                                    ${State.data.activeTab === 'projects' ? Templates.Projects(filtered) : ''}
+                                    ${State.data.activeTab === 'sync' ? Templates.Sync() : ''}
+                                </div>
+                            </main>
                         </div>
-                        <h1 class="text-4xl font-black text-white italic tracking-tighter mb-10">Cori<span class="text-cyan-400 font-light">Talks</span></h1>
-                        <form onsubmit="event.preventDefault(); handleLogin(this.email.value, this.role.value, this.squad.value);" class="space-y-6 text-left">
-                            <input name="email" type="email" required placeholder="tu.nombre@comfamiliar.com" class="w-full bg-slate-800 border border-slate-700 rounded-2xl px-6 py-4 text-white focus:ring-2 focus:ring-cyan-500 outline-none">
+                        ${State.data.showModal ? Templates.Modal() : ''}
+                    `;
+                }
+                lucide.createIcons();
+            }
+        };
+
+        // ==========================================
+        // TEMPLATES
+        // ==========================================
+        const Templates = {
+            Login: () => `
+                <div class="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 animate-fade-in relative overflow-hidden">
+                    
+                    <!-- Background blobs -->
+                    <div class="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+                    <div class="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+
+                    <div class="max-w-md w-full glass-panel !bg-white/5 border-white/10 rounded-[2.5rem] p-12 shadow-2xl text-center relative z-10">
+                        <div class="bg-gradient-to-tr from-cyan-500 to-blue-600 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-lg shadow-cyan-500/30">
+                            <i data-lucide="target" class="text-white w-10 h-10"></i>
+                        </div>
+                        <h1 class="text-5xl font-heading font-black text-white tracking-tight mb-2 italic">Cori<span class="text-cyan-400 font-light">Talks</span></h1>
+                        <p class="text-slate-400 font-medium mb-10 text-sm tracking-wide uppercase">Plataforma de Estrategia OKR</p>
+                        
+                        <form onsubmit="event.preventDefault(); Actions.login(this);" class="space-y-5 text-left">
+                            <div class="group">
+                                <input name="email" type="email" required placeholder="tu.email@comfamiliar.com" 
+                                class="w-full bg-slate-900/50 border border-slate-700/50 rounded-2xl px-6 py-5 text-white placeholder-slate-500 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none transition-all">
+                            </div>
                             <div class="grid grid-cols-2 gap-4">
-                                <select name="role" onchange="document.getElementById('sqDiv').style.display = this.value === 'Super Admin' ? 'none' : 'block'" class="bg-slate-800 border border-slate-700 rounded-2xl px-4 py-4 text-white text-xs outline-none">
-                                    ${state.roles.map(r => `<option value="${r}">${r}</option>`).join('')}
-                                </select>
-                                <div id="sqDiv">
-                                    <select name="squad" class="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-4 text-white text-xs outline-none">
-                                        ${state.squads.map(s => `<option value="${s.id}">${s.name.split(' ')[1]}</option>`).join('')}
+                                <div class="bg-slate-900/50 border border-slate-700/50 rounded-2xl px-2">
+                                    <select name="role" onchange="document.getElementById('sqDiv').style.opacity = this.value === 'Super Admin' ? '0.3' : '1'; document.getElementById('sqDiv').style.pointerEvents = this.value === 'Super Admin' ? 'none' : 'auto'" 
+                                    class="w-full bg-transparent py-5 text-white text-xs font-bold uppercase outline-none cursor-pointer">
+                                        ${State.data.roles.map(r => `<option class="bg-slate-900" value="${r}">${r}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div id="sqDiv" class="bg-slate-900/50 border border-slate-700/50 rounded-2xl px-2 transition-opacity">
+                                    <select name="squad" class="w-full bg-transparent py-5 text-white text-xs font-bold uppercase outline-none cursor-pointer">
+                                        ${State.data.squads.map(s => `<option class="bg-slate-900" value="${s.id}">${s.name.split(' ')[1]}</option>`).join('')}
                                     </select>
                                 </div>
                             </div>
-                            <button class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-black py-5 rounded-3xl transition-all">Ingresar</button>
+                            <button class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-5 rounded-2xl transition-all btn-hover-effect shadow-lg shadow-cyan-900/20 mt-4">
+                                INGRESAR AL ESPACIO
+                            </button>
                         </form>
                     </div>
                 </div>
-            `;
-        }
+            `,
 
-        function renderSidebar() {
-            const menu = [
-                { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
-                { id: 'projects', label: 'Proyectos', icon: 'briefcase' },
-                { id: 'sync', label: 'Cloud & Robots', icon: 'database' }
-            ];
-            return `
-                <aside class="w-80 bg-slate-950 text-white flex flex-col shrink-0 border-r border-slate-900 glass-sidebar">
-                    <div class="p-10 border-b border-slate-900">
-                        <div class="flex items-center gap-3 mb-10">
-                            <i data-lucide="target" class="text-cyan-400 w-8 h-8"></i>
-                            <h1 class="text-3xl font-black italic tracking-tight">Cori<span class="text-cyan-400 font-light">Talks</span></h1>
-                        </div>
-                        <div class="p-4 bg-slate-900/50 rounded-2xl border border-slate-800 flex items-center gap-4">
-                            <div class="w-10 h-10 bg-cyan-600 rounded-xl flex items-center justify-center font-black text-sm">${state.user.name.substring(0,2).toUpperCase()}</div>
-                            <div class="overflow-hidden">
-                                <p class="text-sm font-bold truncate capitalize leading-none mb-1">${state.user.name}</p>
-                                <p class="text-[10px] text-cyan-500 font-black uppercase tracking-tighter">${state.user.role}</p>
+            Sidebar: () => {
+                const menu = [
+                    { id: 'dashboard', label: 'Tablero', icon: 'layout-dashboard' },
+                    { id: 'projects', label: 'Estrategia', icon: 'briefcase' },
+                    { id: 'sync', label: 'Cloud Sync', icon: 'cloud-lightning' }
+                ];
+                return `
+                    <aside class="w-[280px] shrink-0 glass-sidebar flex flex-col text-white hidden lg:flex h-full transition-all">
+                        <div class="p-8 border-b border-slate-800/50">
+                            <div class="flex items-center gap-3 mb-8">
+                                <div class="w-8 h-8 rounded-lg bg-cyan-500 flex items-center justify-center"><i data-lucide="target" class="text-white w-5 h-5"></i></div>
+                                <h1 class="text-2xl font-heading font-bold italic tracking-tight">Cori<span class="text-cyan-400 font-light">Talks</span></h1>
+                            </div>
+                            <div class="p-4 bg-slate-800/40 rounded-2xl border border-slate-700/30 flex items-center gap-3">
+                                <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center font-bold text-sm shadow-inner">${State.data.user.name.substring(0, 2).toUpperCase()}</div>
+                                <div class="overflow-hidden min-w-0">
+                                    <p class="text-sm font-bold truncate capitalize text-slate-100">${State.data.user.name}</p>
+                                    <p class="text-[10px] text-cyan-500 font-black uppercase tracking-wider">${State.data.user.role}</p>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <nav class="flex-1 p-8 space-y-3">
-                        ${menu.map(item => `
-                            <button onclick="state.activeTab = '${item.id}'; render();" class="w-full flex items-center gap-5 px-6 py-5 rounded-2xl transition-all ${state.activeTab === item.id ? 'bg-cyan-600 text-white shadow-xl shadow-cyan-900/40' : 'text-slate-500 hover:bg-slate-900 hover:text-white'}">
-                                <i data-lucide="${item.icon}" class="w-5 h-5"></i>
-                                <span class="text-sm font-bold uppercase tracking-widest">${item.label}</span>
+                        <nav class="flex-1 p-6 space-y-2">
+                            ${menu.map(item => `
+                                <button onclick="State.update({activeTab: '${item.id}'})" 
+                                class="w-full flex items-center gap-4 px-5 py-4 rounded-xl transition-all font-medium text-sm group relative overflow-hidden ${State.data.activeTab === item.id ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-900/20' : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'}">
+                                    <i data-lucide="${item.icon}" class="w-5 h-5 relative z-10 transition-transform group-hover:scale-110"></i>
+                                    <span class="relative z-10 tracking-wide">${item.label}</span>
+                                </button>
+                            `).join('')}
+                        </nav>
+                        <div class="p-6 border-t border-slate-800/50 text-center">
+                            <button onclick="State.update({user: null})" class="text-slate-500 hover:text-rose-400 text-xs font-bold uppercase tracking-widest transition-colors flex items-center justify-center gap-2 py-4">
+                                <i data-lucide="log-out" class="w-3 h-3"></i> Cerrar Sesión
                             </button>
-                        `).join('')}
-                    </nav>
-                    <div class="p-10 border-t border-slate-900">
-                        <button onclick="state.user = null; render();" class="w-full flex items-center justify-center gap-2 text-slate-600 hover:text-red-400 text-[10px] font-black uppercase transition-colors">
-                            <i data-lucide="log-out" class="w-4 h-4"></i> Salir
-                        </button>
-                    </div>
-                </aside>
-            `;
-        }
-
-        function renderHeader(filtered) {
-            const global = getGlobalProgress(filtered);
-            return `
-                <header class="flex justify-between items-end mb-12 animate-fade-in">
-                    <div>
-                        <h2 class="text-5xl font-black text-slate-900 tracking-tight mb-2 italic">Estrategia</h2>
-                        <p class="text-slate-500 font-medium italic">Estado para <span class="text-cyan-600 font-bold underline underline-offset-4">${state.user.role === 'Super Admin' ? 'Comfamiliar Risaralda' : state.squads.find(s=>s.id===state.user.squadId).name}</span></p>
-                    </div>
-                    <div class="bg-white p-6 rounded-[3rem] border border-slate-100 shadow-sm flex items-center gap-8 pr-12">
-                        <div class="relative w-20 h-20 flex items-center justify-center">
-                            <svg class="w-full h-full progress-circle">
-                                <circle cx="40" cy="40" r="34" fill="transparent" stroke="#f1f5f9" stroke-width="8" />
-                                <circle cx="40" cy="40" r="34" fill="transparent" stroke="#0ea5e9" stroke-width="8" stroke-dasharray="213.6" stroke-dashoffset="${213.6 - (213.6 * global) / 100}" stroke-linecap="round" />
-                            </svg>
-                            <span class="absolute font-black text-xl text-slate-800">${global}%</span>
                         </div>
+                    </aside>
+                `;
+            },
+
+            Header: (filtered) => {
+                const global = Utils.calculateProgress.project({ objectives: filtered.flatMap(p => p.objectives) }); // Rough global approximation
+                return `
+                    <header class="flex flex-col md:flex-row md:items-end justify-between gap-6 animate-fade-in">
                         <div>
-                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">CUMPLIMIENTO</p>
-                            <p class="text-xs font-bold text-slate-600">Avance Estratégico Global</p>
+                            <div class="flex items-center gap-3 mb-2">
+                                <span class="bg-cyan-100 text-cyan-700 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full">Q1 2026</span>
+                                <span class="bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full">Active Cycle</span>
+                            </div>
+                            <h2 class="text-4xl lg:text-5xl font-heading font-black text-slate-900 tracking-tight italic">
+                                Visión <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-indigo-600">Estratégica</span>
+                            </h2>
+                            <p class="text-slate-500 font-medium mt-2">Squad: <span class="text-slate-900 font-bold">${State.data.user.role === 'Super Admin' ? 'Vista Global' : State.data.squads.find(s => s.id === State.data.user.squadId).name}</span></p>
+                        </div>
+                        
+                        <div class="glass-panel !bg-white p-2 pr-8 rounded-[2rem] flex items-center gap-6 shadow-sm ring-1 ring-slate-100">
+                            <div class="relative w-20 h-20 flex items-center justify-center">
+                                <svg class="w-full h-full progress-circle transform -rotate-90">
+                                    <circle cx="40" cy="40" r="32" fill="transparent" stroke="#f1f5f9" stroke-width="6" />
+                                    <circle cx="40" cy="40" r="32" fill="transparent" stroke="#0ea5e9" stroke-width="6" stroke-dasharray="201" stroke-dashoffset="${201 - (201 * global) / 100}" stroke-linecap="round" />
+                                </svg>
+                                <span class="absolute font-black text-lg text-slate-800">${global}%</span>
+                            </div>
+                            <div class="text-left">
+                                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-0.5">OKRs</p>
+                                <p class="text-sm font-black text-slate-700 leading-tight">Cumplimiento<br>Trimestral</p>
+                            </div>
+                        </div>
+                    </header>
+                `;
+            },
+
+            Dashboard: (filtered) => {
+                return `
+                    <div class="animate-fade-in space-y-8" style="animation-delay: 0.1s">
+                        <!-- KPI GRID -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            ${[
+                        { label: 'Iniciativas', value: filtered.length, icon: 'folder-git-2', bg: 'bg-blue-50', color: 'text-blue-600' },
+                        { label: 'Objetivos', value: filtered.reduce((a, b) => a + (p => p.objectives?.length || 0)(b), 0), icon: 'crosshair', bg: 'bg-purple-50', color: 'text-purple-600' },
+                        { label: 'KRs Activos', value: filtered.reduce((a, b) => a + (p => p.objectives?.reduce((acc, o) => acc + (o.krs?.length || 0), 0) || 0)(b), 0), icon: 'bar-chart-2', bg: 'bg-emerald-50', color: 'text-emerald-600' },
+                        { label: 'Cloud Sync', value: State.data.lastSync === 'Nunca' ? 'Pendiente' : 'OK', icon: 'database', bg: 'bg-orange-50', color: State.data.lastSync === 'Nunca' ? 'text-orange-400' : 'text-emerald-600' }
+                    ].map(kpi => `
+                                <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-lg transition-shadow">
+                                    <div class="flex justify-between items-start mb-4">
+                                        <div class="w-12 h-12 rounded-2xl ${kpi.bg} ${kpi.color} flex items-center justify-center"><i data-lucide="${kpi.icon}" class="w-6 h-6"></i></div>
+                                        <div class="bg-slate-50 px-3 py-1 rounded-full text-[10px] font-black text-slate-400 uppercase tracking-wider">KPI</div>
+                                    </div>
+                                    <p class="text-3xl font-black text-slate-900 mb-1">${kpi.value}</p>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">${kpi.label}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <!-- PROGRESS BARS -->
+                        <div class="glass-panel !bg-white p-8 lg:p-12 rounded-[2.5rem] relative overflow-hidden">
+                            <h3 class="text-2xl font-heading font-black text-slate-900 mb-8 flex items-center gap-3">
+                                <i data-lucide="trending-up" class="text-cyan-600"></i> Desempeño por Iniciativa
+                            </h3>
+                            <div class="space-y-8 relative z-10">
+                                ${filtered.map(p => {
+                        const prog = Utils.calculateProgress.project(p);
+                        return `
+                                        <div>
+                                            <div class="flex justify-between items-end mb-3">
+                                                <div>
+                                                    <span class="text-[10px] font-black text-cyan-600 uppercase tracking-widest bg-cyan-50 px-2 py-1 rounded-md mb-2 inline-block">${p.id}</span>
+                                                    <h4 class="text-lg font-bold text-slate-800">${p.name}</h4>
+                                                </div>
+                                                <span class="text-2xl font-black ${prog >= 70 ? 'text-emerald-500' : 'text-slate-900'}">${prog}%</span>
+                                            </div>
+                                            <div class="w-full bg-slate-100 h-4 rounded-full overflow-hidden">
+                                                <div class="h-full rounded-full transition-all duration-1000 ease-out bg-gradient-to-r ${prog >= 70 ? 'from-emerald-500 to-teal-400' : 'from-cyan-600 to-blue-500'}" style="width: ${prog}%"></div>
+                                            </div>
+                                        </div>
+                                    `;
+                    }).join('')}
+                            </div>
                         </div>
                     </div>
-                </header>
-            `;
-        }
+                `;
+            },
 
-        function renderDashboard(filtered) {
-            return `
-                <div class="animate-fade-in space-y-10">
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        ${[
-                            { label: 'Proyectos', value: filtered.length, icon: 'activity', bg: 'bg-blue-100', color: 'text-blue-600' },
-                            { label: 'Objetivos', value: filtered.reduce((a,b)=>a+b.objectives.length, 0), icon: 'layers', bg: 'bg-indigo-100', color: 'text-indigo-600' },
-                            { label: 'KRs Totales', value: filtered.reduce((a,b)=>a+b.objectives.reduce((acc,o)=>acc+o.krs.length, 0), 0), icon: 'check-circle-2', bg: 'bg-emerald-100', color: 'text-emerald-600' },
-                            { label: 'Sync Activo', value: state.lastSync === 'Nunca' ? 'Off' : 'On', icon: 'globe', bg: 'bg-cyan-100', color: 'text-cyan-600' }
-                        ].map(s => `
-                            <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm group">
-                                <div class="w-12 h-12 rounded-2xl ${s.bg} ${s.color} flex items-center justify-center mb-6 shadow-inner"><i data-lucide="${s.icon}" class="w-6 h-6"></i></div>
-                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">${s.label}</p>
-                                <p class="text-3xl font-black text-slate-900">${s.value}</p>
-                            </div>
-                        `).join('')}
-                    </div>
+            Projects: (filtered) => {
+                return `
+                    <div class="animate-fade-in space-y-8 pb-20" style="animation-delay: 0.1s">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-xl font-bold text-slate-400 uppercase tracking-widest">Catálogo de Iniciativas</h3>
+                            ${(State.data.user.role === 'PO' || State.data.user.role === 'Super Admin') ? `
+                                <button onclick="Actions.openModal()" 
+                                class="bg-slate-900 text-white px-8 py-4 rounded-[2rem] font-bold text-xs uppercase tracking-widest flex items-center gap-3 hover:bg-cyan-600 transition-all shadow-xl active:scale-95">
+                                    <i data-lucide="plus" class="w-4 h-4"></i> Crear Proyecto
+                                </button>
+                            ` : ''}
+                        </div>
 
-                    <div class="bg-white rounded-[4rem] p-12 border border-slate-200 shadow-sm relative overflow-hidden">
-                        <div class="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none"><i data-lucide="bar-chart-3" class="w-64 h-64"></i></div>
-                        <h3 class="text-2xl font-black text-slate-900 mb-12 flex items-center gap-3"><i data-lucide="bar-chart-3" class="text-cyan-600"></i> Comparativa de Proyectos</h3>
-                        <div class="space-y-12">
+                        <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
                             ${filtered.map(p => {
-                                const prog = getProjectProgress(p);
-                                return `
-                                    <div class="group">
-                                        <div class="flex justify-between items-end mb-4">
-                                            <div>
-                                                <p class="text-xs font-black text-cyan-600 uppercase tracking-widest mb-1">${p.id} · ${state.squads.find(s=>s.id===p.squadId).name.split(' ')[1]}</p>
-                                                <h4 class="text-xl font-bold text-slate-800">${p.name}</h4>
-                                            </div>
-                                            <span class="text-3xl font-black text-slate-900">${prog}%</span>
+                    const prog = Utils.calculateProgress.project(p);
+                    return `
+                                    <div class="bg-white rounded-[3rem] border border-slate-100 p-8 lg:p-10 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative group overflow-hidden">
+                                        <div class="absolute top-0 right-0 w-32 h-32 bg-slate-50 rounded-bl-[3rem] -mr-4 -mt-4 z-0 transition-colors group-hover:bg-cyan-50"></div>
+                                        
+                                        <button onclick="Actions.openModal('${p.id}')" 
+                                        class="absolute top-8 right-8 z-10 w-12 h-12 bg-white border border-slate-100 hover:border-cyan-200 hover:text-cyan-600 rounded-2xl flex items-center justify-center transition-all shadow-sm">
+                                            <i data-lucide="pencil" class="w-4 h-4"></i>
+                                        </button>
+
+                                        <div class="relative z-10 mb-8">
+                                            <span class="inline-flex items-center gap-2 bg-slate-50 border border-slate-100 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-500 mb-6">
+                                                <span class="w-2 h-2 rounded-full bg-cyan-500"></span>
+                                                ${State.data.squads.find(s => s.id === p.squadId).name}
+                                            </span>
+                                            <h3 class="text-3xl font-heading font-black text-slate-900 mb-3 pr-16">${p.name}</h3>
+                                            <p class="text-sm text-slate-500 font-medium leading-relaxed line-clamp-2">${p.description}</p>
                                         </div>
-                                        <div class="w-full bg-slate-50 h-6 rounded-full overflow-hidden shadow-inner p-1 border border-slate-100">
-                                            <div class="bg-gradient-to-r from-cyan-600 to-cyan-400 h-full rounded-full transition-all duration-1000 shadow-lg shadow-cyan-600/20" style="width: ${prog}%"></div>
+
+                                        <div class="space-y-4 mb-8">
+                                            ${p.objectives.slice(0, 3).map(obj => `
+                                                <div class="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:shadow-md transition-all">
+                                                    <div class="flex items-center gap-3">
+                                                        <div class="w-1.5 h-8 bg-indigo-500 rounded-full"></div>
+                                                        <span class="text-sm font-bold text-slate-700 line-clamp-1 w-48 lg:w-64">${obj.title}</span>
+                                                    </div>
+                                                    <span class="text-xs font-black text-slate-400 bg-slate-100 px-2 py-1 rounded-md">${Utils.calculateProgress.objective(obj)}%</span>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+
+                                        <div class="pt-6 border-t border-slate-100 flex items-center justify-between">
+                                            <div class="flex -space-x-3">
+                                                ${p.participants.map(part => `
+                                                    <div class="w-10 h-10 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-slate-500" title="${part.name}">${part.name.substring(0, 2)}</div>
+                                                `).join('')}
+                                            </div>
+                                            <div class="text-right">
+                                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">PROGRESO</p>
+                                                <p class="text-4xl font-black text-slate-900">${prog}%</p>
+                                            </div>
                                         </div>
                                     </div>
                                 `;
-                            }).join('')}
+                }).join('')}
                         </div>
                     </div>
-                </div>
-            `;
-        }
+                `;
+            },
 
-        function renderProjects(filtered) {
-            return `
-                <div class="animate-fade-in space-y-10 pb-20">
-                    <div class="flex justify-between items-center mb-10">
-                        <h3 class="text-2xl font-black text-slate-900 uppercase tracking-widest italic">Gestión de Iniciativas</h3>
-                        ${(state.user.role === 'PO' || state.user.role === 'Super Admin') ? `
-                            <button onclick="openProjectModal()" class="bg-slate-900 text-white px-10 py-6 rounded-[2.5rem] font-black text-xs uppercase tracking-widest flex items-center gap-3 hover:bg-cyan-600 transition-all shadow-xl active:scale-95">
-                                <i data-lucide="plus" class="w-4 h-4"></i> Nuevo Proyecto
-                            </button>
-                        ` : ''}
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
-                        ${filtered.map(p => `
-                            <div class="bg-white rounded-[3.5rem] border border-slate-200 overflow-hidden relative shadow-sm hover:shadow-2xl transition-all group">
-                                <button onclick="openProjectModal('${p.id}')" class="absolute top-10 right-10 p-5 bg-slate-50 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-[1.5rem] transition-all">
-                                    <i data-lucide="edit-3" class="w-6 h-6"></i>
-                                </button>
-                                <div class="p-12 border-b border-slate-50 bg-slate-50/50">
-                                    <span class="bg-white border border-slate-200 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-500 shadow-sm inline-block mb-8">
-                                        ${state.squads.find(s=>s.id===p.squadId).name}
-                                    </span>
-                                    <h3 class="text-4xl font-black text-slate-900 mb-4 pr-16">${p.name}</h3>
-                                    <p class="text-base text-slate-500 leading-relaxed font-medium italic">"${p.description}"</p>
-                                </div>
-                                <div class="p-12 space-y-10">
-                                    <div class="space-y-6">
-                                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">OBJETIVOS ESTRATÉGICOS (${p.objectives.length})</p>
-                                        ${p.objectives.map(obj => `
-                                            <div class="bg-slate-50 p-6 rounded-[2.5rem] border border-slate-100 flex justify-between items-center">
-                                                <span class="text-base font-bold text-slate-800">${obj.title}</span>
-                                                <span class="bg-white border border-slate-200 px-4 py-1.5 rounded-full text-[10px] font-black text-cyan-600 shadow-sm">${calculateObjectiveProgress(obj)}%</span>
-                                            </div>
-                                        `).join('')}
-                                    </div>
-                                    <div class="pt-8 border-t border-slate-100 flex justify-between items-end">
-                                        <div>
-                                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">PROGRESO TOTAL</p>
-                                            <p class="text-5xl font-black text-cyan-600">${getProjectProgress(p)}%</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        `).join('')}
-                        ${filtered.length === 0 ? '<div class="col-span-full text-center py-20 bg-white rounded-[4rem] border-2 border-dashed border-slate-200 text-slate-400 italic">No tienes proyectos asignados. Pulsa "Nuevo Proyecto" para comenzar.</div>' : ''}
-                    </div>
-                </div>
-            `;
-        }
-
-        function renderSync() {
-            return `
-                <div class="animate-fade-in max-w-4xl mx-auto space-y-10 pb-20">
-                    <div class="bg-white p-12 rounded-[4rem] border border-slate-200 shadow-sm relative overflow-hidden">
-                        <div class="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none"><i data-lucide="database" class="w-80 h-80"></i></div>
-                        <h2 class="text-4xl font-black text-slate-900 tracking-tight italic uppercase mb-10">Infraestructura Cloud</h2>
+            Sync: () => `
+                <div class="animate-fade-in max-w-3xl mx-auto pb-20" style="animation-delay: 0.1s">
+                    <div class="bg-white rounded-[3rem] border border-slate-200 overflow-hidden shadow-xl">
+                        <div class="bg-slate-900 p-12 text-center relative overflow-hidden">
+                            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-cyan-500/20 blur-[80px] rounded-full"></div>
+                            <i data-lucide="cloud-lightning" class="w-16 h-16 text-cyan-400 mx-auto mb-6 relative z-10"></i>
+                            <h2 class="text-3xl font-heading font-black text-white italic relative z-10">Centro de Sincronización</h2>
+                            <p class="text-slate-400 mt-2 relative z-10">Conecta tu estrategia local con Google Sheets</p>
+                        </div>
                         
-                        <div class="space-y-12">
-                            <div class="bg-slate-50 p-12 rounded-[3.5rem] border border-slate-200">
-                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-4 tracking-[0.2em] px-4">Endpoint de API</label>
+                        <div class="p-12 space-y-10">
+                            <div>
+                                <label class="block text-xs font-black text-slate-400 uppercase mb-4 tracking-widest ml-1">Google App Script URL</label>
                                 <div class="flex gap-4">
-                                    <input type="text" value="${state.sheetUrl}" oninput="state.sheetUrl = this.value" class="flex-1 bg-white border border-slate-200 rounded-3xl px-8 py-5 text-sm font-mono text-slate-600 outline-none transition-all">
-                                    <button onclick="syncWithSheets()" class="bg-slate-950 text-white px-10 rounded-3xl font-black uppercase text-[10px] tracking-widest hover:bg-cyan-600 active:scale-95 shadow-xl">Vincular</button>
+                                    <input type="text" value="${State.data.sheetUrl}" onchange="State.data.sheetUrl = this.value; localStorage.setItem('okr_sheet_url', this.value)" 
+                                    class="flex-1 bg-slate-50 border border-slate-200 rounded-3xl px-8 py-5 text-sm font-mono text-slate-600 outline-none focus:ring-2 focus:ring-cyan-500 transition-all">
                                 </div>
-                                <p class="mt-6 text-[10px] text-slate-400 font-black uppercase tracking-widest px-4 italic">Última Sync: <span class="text-cyan-600">${state.lastSync}</span></p>
                             </div>
 
-                            <div class="border-t border-slate-100 pt-16">
-                                <h3 class="text-2xl font-black text-slate-900 italic tracking-tight mb-8">Robot de Pruebas</h3>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <button onclick="runTestRobot()" class="flex items-center justify-between p-12 bg-indigo-50 border border-indigo-100 rounded-[3.5rem] hover:bg-indigo-100 transition-all group active:scale-95 shadow-sm">
-                                        <div class="text-left">
-                                            <p class="text-xl font-black text-indigo-700 italic">Poblar Dashboard</p>
-                                            <p class="text-[10px] text-indigo-500 font-black uppercase mt-2 tracking-widest">Inyectar 4 Proyectos</p>
-                                        </div>
-                                        <div class="p-4 bg-white rounded-3xl group-hover:bg-indigo-600 group-hover:text-white transition-all"><i data-lucide="zap" class="w-10 h-10"></i></div>
-                                    </button>
-                                    <button onclick="state.projects = []; notify('Limpieza total', 'error'); render();" class="flex items-center justify-between p-12 bg-red-50 border border-red-100 rounded-[3.5rem] hover:bg-red-100 transition-all group active:scale-95 shadow-sm">
-                                        <div class="text-left">
-                                            <p class="text-xl font-black text-red-700 italic">Limpiar Lab</p>
-                                            <p class="text-[10px] text-red-500 font-black uppercase mt-2 tracking-widest">Borrar todo</p>
-                                        </div>
-                                        <div class="p-4 bg-white rounded-3xl group-hover:bg-red-600 group-hover:text-white transition-all"><i data-lucide="trash-2" class="w-10 h-10"></i></div>
-                                    </button>
-                                </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <button onclick="State.sync()" class="group relative overflow-hidden bg-slate-900 text-white p-10 rounded-[2.5rem] text-left hover:scale-[1.02] transition-transform active:scale-95 shadow-2xl">
+                                    <span class="relative z-10 flex justify-between items-start mb-4">
+                                        <i data-lucide="upload-cloud" class="w-8 h-8 text-cyan-400"></i>
+                                        <span class="bg-slate-800 text-cyan-400 text-[10px] font-black uppercase px-3 py-1 rounded-full">Primary</span>
+                                    </span>
+                                    <h3 class="relative z-10 text-xl font-bold mb-1">Push to Cloud</h3>
+                                    <p class="relative z-10 text-xs text-slate-400">Sincronizar cambios locales</p>
+                                </button>
+                                
+                                <button onclick="Actions.runRobot()" class="group relative overflow-hidden bg-indigo-50 text-indigo-900 p-10 rounded-[2.5rem] text-left hover:bg-indigo-100 transition-colors active:scale-95 border border-indigo-100">
+                                    <span class="flex justify-between items-start mb-4">
+                                        <i data-lucide="bot" class="w-8 h-8 text-indigo-500"></i>
+                                        <span class="bg-white text-indigo-500 text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-sm">Test</span>
+                                    </span>
+                                    <h3 class="text-xl font-bold mb-1">Generar Datos</h3>
+                                    <p class="text-xs text-indigo-400">Inyectar proyectos de prueba</p>
+                                </button>
+                            </div>
+                            
+                            <div class="text-center pt-6 border-t border-slate-100">
+                                <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest">Última conexión: <span class="text-cyan-600">${State.data.lastSync}</span></p>
                             </div>
                         </div>
                     </div>
                 </div>
-            `;
-        }
+            `,
 
-        function renderModal() {
-            const p = state.editingProject;
-            return `
-                <div class="fixed inset-0 z-[100] modal-overlay flex items-center justify-center p-6 overflow-hidden animate-fade-in">
-                    <div class="bg-white w-full max-w-6xl h-[92vh] rounded-[4.5rem] shadow-2xl flex flex-col overflow-hidden">
-                        <div class="p-12 border-b border-slate-100 flex justify-between items-center bg-slate-50/30">
-                            <div><h2 class="text-4xl font-black text-slate-900 tracking-tight italic uppercase">${p.name ? 'Editar Estrategia' : 'Diseñar Iniciativa'}</h2></div>
-                            <button onclick="state.showModal = false; render();" class="p-6 bg-white hover:bg-slate-100 rounded-[2.5rem] text-slate-400 border border-slate-200 transition-all shadow-sm"><i data-lucide="x" class="w-8 h-8"></i></button>
-                        </div>
-                        <div class="flex-1 overflow-y-auto p-12 custom-scrollbar">
-                            <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
-                                <div class="lg:col-span-4 space-y-8">
-                                    <div class="bg-slate-50 p-10 rounded-[3rem] border border-slate-200">
-                                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest px-1">Título</label>
-                                        <input type="text" value="${p.name}" oninput="state.editingProject.name = this.value" class="w-full bg-white border border-slate-200 rounded-3xl px-8 py-5 outline-none font-black text-xl">
-                                    </div>
-                                    <div class="bg-slate-50 p-10 rounded-[3rem] border border-slate-200">
-                                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest px-1">Reseña</label>
-                                        <textarea oninput="state.editingProject.description = this.value" class="w-full bg-white border border-slate-200 rounded-3xl px-8 py-5 h-48 outline-none font-bold text-sm">${p.description}</textarea>
-                                    </div>
-                                    <div class="bg-slate-50 p-10 rounded-[3rem] border border-slate-200">
-                                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest px-1">Squad</label>
-                                        <select onchange="state.editingProject.squadId = this.value" class="w-full bg-white border border-slate-200 rounded-3xl px-8 py-5 font-black text-sm outline-none cursor-pointer">
-                                            ${state.squads.map(s => `<option value="${s.id}" ${p.squadId === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
-                                        </select>
-                                    </div>
+            Modal: () => {
+                const p = State.data.editingProject;
+                return `
+                    <div class="fixed inset-0 z-[200] modal-overlay flex items-center justify-center p-4 lg:p-8 animate-fade-in">
+                        <div class="bg-white w-full max-w-7xl h-[90vh] rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-scale-in">
+                            <!-- HEADER -->
+                            <div class="px-12 py-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                                <div>
+                                    <h2 class="text-3xl font-heading font-black text-slate-900 italic tracking-tight uppercase">
+                                        ${p.id.startsWith('P') && p.name ? 'Editar' : 'Nueva'} Iniciativa
+                                    </h2>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Configuración de OKRs</p>
                                 </div>
-                                <div class="lg:col-span-8 space-y-10 text-left">
-                                    <div class="flex justify-between items-center bg-white p-4 rounded-3xl border border-dashed border-slate-200">
-                                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] px-4">Jerarquía OKR</p>
-                                        <button onclick="addObjective()" class="bg-cyan-600 text-white px-8 py-4 rounded-3xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-cyan-700 shadow-xl transition-all"><i data-lucide="plus" class="w-4 h-4"></i> Nuevo Objetivo</button>
+                                <button onclick="State.update({showModal: false})" class="p-4 bg-white hover:bg-slate-100 rounded-2xl text-slate-400 hover:text-red-500 border border-slate-200 transition-all shadow-sm">
+                                    <i data-lucide="x" class="w-6 h-6"></i>
+                                </button>
+                            </div>
+
+                            <!-- BODY -->
+                            <div class="flex-1 overflow-y-auto p-12 custom-scrollbar bg-slate-50/30">
+                                <div class="grid grid-cols-1 xl:grid-cols-12 gap-12">
+                                    <!-- SIDEBAR OF FORM -->
+                                    <div class="xl:col-span-4 space-y-6 h-fit sticky top-0">
+                                        <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+                                            <div class="group">
+                                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest ml-1">Nombre del Proyecto</label>
+                                                <input type="text" value="${p.name}" oninput="Actions.editProject('name', this.value)" 
+                                                class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 outline-none font-bold text-slate-800 focus:ring-2 focus:ring-cyan-500 transition-all placeholder:text-slate-300" placeholder="Ej: Transformación Digital">
+                                            </div>
+                                            
+                                            <div class="group">
+                                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest ml-1">Descripción</label>
+                                                <textarea oninput="Actions.editProject('description', this.value)" 
+                                                class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 h-32 outline-none font-medium text-sm text-slate-600 focus:ring-2 focus:ring-cyan-500 transition-all resize-none custom-scrollbar" placeholder="Propósito de la iniciativa...">${p.description}</textarea>
+                                            </div>
+
+                                            <div class="group">
+                                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest ml-1">Squad Asignado</label>
+                                                <div class="relative">
+                                                    <select onchange="Actions.editProject('squadId', this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 font-bold text-sm text-slate-700 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-cyan-500">
+                                                        ${State.data.squads.map(s => `<option value="${s.id}" ${p.squadId === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+                                                    </select>
+                                                    <i data-lucide="chevron-down" class="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="space-y-12">
-                                        ${p.objectives.map((obj, oIdx) => `
-                                            <div class="bg-slate-50 border border-slate-200 rounded-[3.5rem] overflow-hidden shadow-sm">
-                                                <div class="p-10 bg-white border-b border-slate-100 flex items-center gap-8">
-                                                    <div class="w-14 h-14 bg-slate-900 rounded-[1.5rem] flex items-center justify-center text-white font-black text-lg">O${oIdx+1}</div>
-                                                    <input type="text" value="${obj.title}" oninput="state.editingProject.objectives[${oIdx}].title = this.value" class="flex-1 font-black text-2xl text-slate-800 outline-none bg-transparent">
-                                                    <div class="flex gap-4">
-                                                        <button onclick="addKR(${oIdx})" class="bg-cyan-50 text-cyan-600 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1 hover:bg-cyan-600 hover:text-white transition-all"><i data-lucide="plus" class="w-3 h-3"></i> KR</button>
-                                                        <button onclick="state.editingProject.objectives.splice(${oIdx}, 1); render();" class="text-slate-200 hover:text-red-500 transition-colors"><i data-lucide="trash-2" class="w-6 h-6"></i></button>
+
+                                    <!-- MAIN FORM AREA -->
+                                    <div class="xl:col-span-8 space-y-8">
+                                        <div class="flex justify-between items-center mb-4 px-2">
+                                            <h3 class="text-xl font-bold text-slate-900">Arbol de Objetivos</h3>
+                                            <button onclick="Actions.addObjective()" class="bg-slate-900 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-cyan-600 hover:shadow-lg hover:-translate-y-1 transition-all">
+                                                <i data-lucide="plus-circle" class="w-4 h-4"></i> Añadir Objetivo
+                                            </button>
+                                        </div>
+                                        
+                                        <div class="space-y-8">
+                                            ${p.objectives.map((obj, oIdx) => `
+                                                <div class="bg-white border border-slate-200 rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                                                    <div class="p-8 border-b border-slate-100 flex items-start gap-6 bg-slate-50/50">
+                                                        <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center font-black text-lg shadow-inner shrink-0">${oIdx + 1}</div>
+                                                        <div class="flex-1 space-y-2">
+                                                            <input type="text" value="${obj.title}" oninput="Actions.editObjective(${oIdx}, 'title', this.value)" 
+                                                            class="w-full font-black text-xl text-slate-800 bg-transparent outline-none placeholder:text-slate-300 border-b border-transparent hover:border-slate-300 focus:border-indigo-500 transition-colors pb-1" placeholder="Título del Objetivo Estratégico">
+                                                        </div>
+                                                        <button onclick="Actions.deleteObjective(${oIdx})" class="p-3 bg-white text-slate-300 hover:text-red-500 rounded-xl hover:bg-red-50 transition-all"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                                                    </div>
+                                                    
+                                                    <div class="p-8 space-y-4">
+                                                        ${obj.krs.map((kr, kIdx) => `
+                                                            <div class="group grid grid-cols-12 gap-6 items-center p-6 rounded-[1.5rem] border border-slate-100 bg-slate-50/30 hover:bg-white hover:border-indigo-100 hover:shadow-sm transition-all">
+                                                                <div class="col-span-12 md:col-span-6">
+                                                                    <label class="text-[9px] font-bold text-slate-300 uppercase mb-1 block pl-1">Key Result</label>
+                                                                    <input type="text" value="${kr.definition}" oninput="Actions.editKR(${oIdx}, ${kIdx}, 'definition', this.value)" 
+                                                                    class="w-full text-sm font-bold text-slate-700 bg-transparent outline-none border-b border-transparent focus:border-cyan-500 pb-1" placeholder="Definición del Resultado Clave">
+                                                                </div>
+                                                                <div class="col-span-6 md:col-span-3">
+                                                                    <label class="text-[9px] font-bold text-slate-300 uppercase mb-1 block pl-1 text-center">Progreso (Act / Meta)</label>
+                                                                    <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2">
+                                                                        <input type="number" value="${kr.current}" onchange="Actions.editKR(${oIdx}, ${kIdx}, 'current', this.value)" class="w-full text-right font-black text-sm outline-none bg-transparent">
+                                                                        <span class="text-slate-300">/</span>
+                                                                        <input type="number" value="${kr.target}" onchange="Actions.editKR(${oIdx}, ${kIdx}, 'target', this.value)" class="w-full font-bold text-xs text-slate-400 outline-none bg-transparent">
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                <div class="col-span-5 md:col-span-2 text-center">
+                                                                    <label class="text-[9px] font-bold text-slate-300 uppercase mb-1 block">Owner</label>
+                                                                    <div class="bg-indigo-50 text-indigo-700 px-3 py-2 rounded-xl text-[10px] font-black uppercase truncate">${kr.owner}</div>
+                                                                </div>
+
+                                                                <div class="col-span-1 flex justify-end">
+                                                                    <button onclick="Actions.deleteKR(${oIdx}, ${kIdx})" class="text-slate-300 hover:text-red-500 p-2"><i data-lucide="x" class="w-4 h-4"></i></button>
+                                                                </div>
+                                                            </div>
+                                                        `).join('')}
+                                                        
+                                                        <button onclick="Actions.addKR(${oIdx})" class="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 font-bold text-xs uppercase hover:border-cyan-400 hover:text-cyan-600 hover:bg-cyan-50/50 transition-all flex items-center justify-center gap-2">
+                                                            <i data-lucide="plus" class="w-4 h-4"></i> Añadir Key Result
+                                                        </button>
                                                     </div>
                                                 </div>
-                                                <div class="p-10 space-y-4 text-left">
-                                                    ${obj.krs.map((kr, kIdx) => `
-                                                        <div class="grid grid-cols-12 gap-6 bg-white p-8 rounded-[2rem] border border-slate-100 items-center shadow-sm">
-                                                            <div class="col-span-5"><input type="text" value="${kr.definition}" oninput="state.editingProject.objectives[${oIdx}].krs[${kIdx}].definition = this.value" class="w-full text-sm font-bold text-slate-700 outline-none" placeholder="KR Definition"></div>
-                                                            <div class="col-span-3 flex items-center gap-4 bg-slate-50 px-6 py-3 rounded-2xl">
-                                                                <input type="number" value="${kr.current}" oninput="state.editingProject.objectives[${oIdx}].krs[${kIdx}].current = parseFloat(this.value) || 0" class="w-full text-center font-black text-base bg-transparent outline-none">
-                                                                <span class="text-slate-300 font-black">/</span>
-                                                                <input type="number" value="${kr.target}" oninput="state.editingProject.objectives[${oIdx}].krs[${kIdx}].target = parseFloat(this.value) || 100" class="w-full text-center font-black text-sm bg-transparent text-slate-400 outline-none">
-                                                            </div>
-                                                            <div class="col-span-3 text-[10px] font-black text-slate-400 uppercase tracking-tighter text-center bg-slate-50 py-2 rounded-xl">Resp: ${kr.owner}</div>
-                                                            <div class="col-span-1 flex justify-end"><button onclick="state.editingProject.objectives[${oIdx}].krs.splice(${kIdx}, 1); render();" class="text-slate-200 hover:text-red-500 transition-colors"><i data-lucide="x-circle" class="w-5 h-5"></i></button></div>
-                                                        </div>
-                                                    `).join('')}
-                                                </div>
-                                            </div>
-                                        `).join('')}
+                                            `).join('')}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="p-12 border-t border-slate-100 bg-slate-50/50 flex gap-6">
-                            <button onclick="saveProject()" class="flex-1 bg-slate-900 text-white font-black py-8 rounded-[3rem] uppercase text-sm tracking-[0.4em] shadow-2xl hover:bg-cyan-600 transition-all flex items-center justify-center gap-4">Consolidar Estrategia</button>
-                            <button onclick="state.showModal = false; render();" class="px-16 border-2 border-slate-200 font-black py-8 rounded-[3rem] uppercase text-sm tracking-[0.4em] hover:bg-white transition-all">Descartar</button>
+                            
+                            <!-- FOOTER -->
+                            <div class="p-8 border-t border-slate-100 bg-white flex gap-6 justify-end">
+                                <button onclick="State.update({showModal: false})" class="px-10 py-5 rounded-[2rem] font-bold text-xs uppercase tracking-widest text-slate-500 hover:bg-slate-50 transition-all">Cancelar</button>
+                                <button onclick="Actions.saveProject()" class="bg-slate-900 text-white px-12 py-5 rounded-[2rem] font-black text-xs uppercase tracking-widest hover:bg-cyan-600 shadow-xl hover:shadow-cyan-500/30 transition-all transform active:scale-95">Guardar Cambios</button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
-        }
+                `;
+            }
+        };
 
-        function renderNotification() {
-            return `
-                <div class="fixed top-10 right-10 z-[200] px-12 py-8 rounded-[3rem] shadow-2xl border animate-fade-in ${state.notification.type === 'error' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-white text-slate-800 border-slate-100'} flex items-center gap-8">
-                    <i data-lucide="${state.notification.type === 'error' ? 'alert-triangle' : 'check-circle-2'}" class="w-10 h-10"></i>
-                    <p class="font-black text-base uppercase tracking-widest italic">${state.notification.msg}</p>
-                </div>
-            `;
-        }
+        // ==========================================
+        // ACTIONS (CONTROLLER)
+        // ==========================================
+        const Actions = {
+            login(form) {
+                const email = form.email.value;
+                const role = form.role.value;
+                const squadId = role === 'Super Admin' ? null : form.squad.value;
+                State.update({
+                    user: {
+                        name: email.split('@')[0],
+                        role: role,
+                        squadId: squadId
+                    }
+                });
+            },
 
-        window.onload = render;
+            openModal(projectId = null) {
+                if (projectId) {
+                    const p = State.data.projects.find(proj => proj.id === projectId);
+                    State.update({ editingProject: JSON.parse(JSON.stringify(p)), showModal: true });
+                } else {
+                    State.update({
+                        editingProject: {
+                            id: Utils.id('P'),
+                            squadId: State.data.user.squadId || 'S1',
+                            name: '',
+                            description: '',
+                            participants: [{ name: State.data.user.name, role: State.data.user.role }],
+                            objectives: []
+                        },
+                        showModal: true
+                    });
+                }
+            },
+
+            editProject(field, value) {
+                State.data.editingProject[field] = value;
+            },
+
+            addObjective() {
+                State.data.editingProject.objectives.push({
+                    id: Utils.id('O'),
+                    title: '',
+                    krs: []
+                });
+                State.update({}); // Trigger render
+            },
+
+            editObjective(idx, field, value) {
+                State.data.editingProject.objectives[idx][field] = value;
+            },
+
+            deleteObjective(idx) {
+                State.data.editingProject.objectives.splice(idx, 1);
+                State.update({});
+            },
+
+            addKR(objIdx) {
+                State.data.editingProject.objectives[objIdx].krs.push({
+                    id: Utils.id('KR'),
+                    definition: '',
+                    target: 100,
+                    current: 0,
+                    owner: State.data.user.name
+                });
+                State.update({});
+            },
+
+            editKR(objIdx, krIdx, field, value) {
+                let val = value;
+                if (field === 'current' || field === 'target') val = parseFloat(value) || 0;
+                State.data.editingProject.objectives[objIdx].krs[krIdx][field] = val;
+                // Don't full re-render on every keystroke if performance is issue, but fine for now
+            },
+
+            deleteKR(objIdx, krIdx) {
+                State.data.editingProject.objectives[objIdx].krs.splice(krIdx, 1);
+                State.update({});
+            },
+
+            saveProject() {
+                const p = State.data.editingProject;
+                if (!p.name) return UI.notify("El nombre del proyecto es obligatorio", "error");
+
+                const index = State.data.projects.findIndex(proj => proj.id === p.id);
+                if (index !== -1) {
+                    State.data.projects[index] = p;
+                    UI.notify("Proyecto actualizado correctamente");
+                } else {
+                    State.data.projects.push(p);
+                    UI.notify("Proyecto creado exitosamente");
+                }
+                State.update({ showModal: false, editingProject: null });
+            },
+
+            runRobot() {
+                UI.notify("Robot de prueba iniciado...", "info");
+                setTimeout(() => {
+                    const robotData = [
+                        { name: "IA Generativa Ops", squad: 'S3' },
+                        { name: "Seguridad Zero Trust", squad: 'S2' },
+                        { name: "Retención de Talento 4.0", squad: 'S1' }
+                    ];
+                    const newOnes = robotData.map((rd, i) => ({
+                        id: Utils.id('ROBOT'),
+                        squadId: rd.squad,
+                        name: rd.name,
+                        description: "Proyecto generado automáticamente para pruebas de carga y visualización.",
+                        participants: [{ name: 'Robot', role: 'System' }],
+                        objectives: [{
+                            id: Utils.id('O'),
+                            title: "Maximizar impacto operativo",
+                            krs: [{ id: Utils.id('KR'), definition: 'Reducir latencia en 20%', target: 100, current: Math.floor(Math.random() * 100), owner: 'Bot' }]
+                        }]
+                    }));
+                    State.data.projects = [...State.data.projects, ...newOnes];
+                    UI.notify(`${newOnes.length} proyectos inyectados`, "success");
+                    State.update({});
+                }, 800);
+            }
+        };
+
+        // --- INIT ---
+        window.onload = UI.render;
+
     </script>
 </body>
+
 </html>
