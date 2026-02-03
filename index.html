@@ -706,7 +706,28 @@
             },
 
             runRobot() {
-                // ...
+                UI.notify("Robot iniciado...", "info");
+                setTimeout(() => {
+                    const newOnes = [{ name: "IA Ops Search", squad: 'S3' }].map(rd => ({
+                        id: Utils.id('ROBOT'),
+                        squadId: rd.squad,
+                        name: rd.name,
+                        description: "Auto-generado por simulación.",
+                        participants: [{ name: 'Bot', role: 'Automated' }],
+                        objectives: [
+                            {
+                                id: Utils.id('OBJ'),
+                                title: "Optimización Automática",
+                                krs: [
+                                    { id: Utils.id('KR'), definition: "Reducir latencia", target: 100, current: Math.floor(Math.random() * 100), owner: "SysAdmin" }
+                                ]
+                            }
+                        ]
+                    }));
+                    State.data.projects = [...State.data.projects, ...newOnes];
+                    UI.notify("1 Proyecto Robot creado", "success");
+                    State.update({});
+                }, 500);
             }
         };
 
